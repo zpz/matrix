@@ -2,7 +2,6 @@ package mat64
 
 import (
 	"fmt"
-	"github.com/gonum/floats"
 	"math"
 	"math/rand"
 )
@@ -27,7 +26,7 @@ func isOrthogonal(a *Dense) bool {
 		for j := i + 1; j < cols; j++ {
 			a.GetCol(i, col1)
 			a.GetCol(j, col2)
-			dot := floats.Dot(col1, col2)
+			dot := dot(col1, col2)
 			if math.Abs(dot) > 1e-14 {
 				return false
 			}

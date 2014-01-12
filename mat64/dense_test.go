@@ -6,8 +6,6 @@ package mat64
 
 import (
 	"github.com/gonum/blas/cblas"
-	"github.com/gonum/floats"
-
 	"fmt"
 	check "launchpad.net/gocheck"
 	"math/rand"
@@ -205,7 +203,7 @@ func (s *S) TestSetRowColumn(c *check.C) {
 			t := Clone(a)
 			a.SetRow(ri, make([]float64, a.cols))
 			t.Subtract(a)
-			c.Check(t.Norm(0), check.Equals, floats.Norm(row, 2))
+			c.Check(t.Norm(0), check.Equals, norm(row, 2))
 		}
 
 		for ci := range as[0] {
@@ -217,7 +215,7 @@ func (s *S) TestSetRowColumn(c *check.C) {
 				col[j] = float64(ci + 1 + j*a.cols)
 			}
 			t.Subtract(a)
-			c.Check(t.Norm(0), check.Equals, floats.Norm(col, 2))
+			c.Check(t.Norm(0), check.Equals, norm(col, 2))
 		}
 	}
 }

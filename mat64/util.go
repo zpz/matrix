@@ -1,5 +1,9 @@
 package mat64
 
+import (
+    "math"
+)
+
 // add returns slice out whose elements are
 // element-wise sums of x and y.
 // If out is nil, a new slice will be created;
@@ -155,6 +159,39 @@ func sum(x []float64) float64 {
 	}
 	return v
 }
+
+
+// Norm returns the L norm of the slice S, defined as
+// (sum_{i=1}^N s[i]^N)^{1/N}
+// Special cases:
+// L = math.Inf(1) gives the maximum value
+// Does not correctly compute the zero norm (use Count).
+func norm(s []float64, L float64) (res float64) {
+	// Should this complain if L is not positive?
+	// Should this be done in log space for better numerical stability?
+	//	would be more cost
+	//	maybe only if L is high?
+    switch {
+	case L == 2:
+		for _, val := range s {
+			res += val * val
+		}
+        res = math.Pow(res, 0.5)
+    case L == 1:
+		for _, val := range s {
+			res += math.Abs(val)
+		}
+    case math.IsInf(L, 1):
+		res = max(s)
+    default:
+        for _, val := range s {
+            res += math.Pow(math.Abs(val), L)
+        }
+        res = math.Pow(res, 1.0/L)
+    }
+    return res
+}
+
 
 func smaller(a, b int) int {
 	if a < b {
