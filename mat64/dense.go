@@ -667,9 +667,7 @@ func (m *Dense) Det() float64 {
 
 // Inv returns the inverse or pseudoinverse of the matrix a.
 func Inv(a *Dense, out *Dense) *Dense {
-	eye := NewDense(a.rows, a.rows)
-	eye.FillDiag(1.0)
-	return Solve(a, eye, out)
+	return Solve(a, eye(a.rows), out)
 }
 
 // Solve returns a matrix x that satisfies ax = b.
