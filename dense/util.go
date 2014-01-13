@@ -1,4 +1,4 @@
-package mat64
+package dense
 
 import (
 	"math"
