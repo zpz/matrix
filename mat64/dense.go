@@ -36,7 +36,7 @@ func NewDense(r, c int) *Dense {
 	}
 }
 
-func (m *Dense) LoadData(data []float64, r, c int) {
+func (m *Dense) LoadData(data []float64, r, c int) *Dense {
 	if len(data) != r*c {
 		panic(ErrInLength)
 	}
@@ -44,6 +44,7 @@ func (m *Dense) LoadData(data []float64, r, c int) {
 	m.cols = c
 	m.stride = c
 	m.data = data
+	return m
 }
 
 func (m *Dense) Dims() (r, c int) { return m.rows, m.cols }
@@ -65,8 +66,9 @@ func (m *Dense) Get(r, c int) float64 {
 	return m.data[r*m.stride+c]
 }
 
-func (m *Dense) Set(r, c int, v float64) {
+func (m *Dense) Set(r, c int, v float64) *Dense {
 	m.data[r*m.stride+c] = v
+	return m
 }
 
 func (m *Dense) RowView(r int) []float64 {
@@ -83,11 +85,12 @@ func (m *Dense) GetRow(r int, row []float64) []float64 {
 	return row
 }
 
-func (m *Dense) SetRow(r int, v []float64) {
+func (m *Dense) SetRow(r int, v []float64) *Dense {
 	if len(v) != m.cols {
 		panic(ErrInLength)
 	}
 	copy(m.RowView(r), v)
+	return m
 }
 
 // ColView
@@ -107,7 +110,7 @@ func (m *Dense) GetCol(c int, col []float64) []float64 {
 	return col
 }
 
-func (m *Dense) SetCol(c int, v []float64) {
+func (m *Dense) SetCol(c int, v []float64) *Dense {
 	if c >= m.cols || c < 0 {
 		panic(ErrIndexOutOfRange)
 	}
@@ -120,6 +123,7 @@ func (m *Dense) SetCol(c int, v []float64) {
 		panic(ErrNoEngine)
 	}
 	blasEngine.Dcopy(m.rows, v, 1, m.data[c:], m.stride)
+	return m
 }
 
 func (m *Dense) SubmatrixView(i, j, r, c int) *Dense {
@@ -144,8 +148,9 @@ func (m *Dense) GetSubmatrix(i, j, r, c int, out *Dense) *Dense {
 	return out
 }
 
-func (m *Dense) SetSubmatrix(i, j, r, c int, v []float64) {
+func (m *Dense) SetSubmatrix(i, j, r, c int, v []float64) *Dense {
 	m.SubmatrixView(i, j, r, c).SetData(v)
+	return m
 }
 
 // DataView returns the slice in the matrix object
@@ -186,7 +191,7 @@ func (m *Dense) GetData(out []float64) []float64 {
 // values for the second row, and so on.
 // Length of v must be equal to the total number of elements in the
 // matrix.
-func (m *Dense) SetData(v []float64) {
+func (m *Dense) SetData(v []float64) *Dense {
 	r, c := m.rows, m.cols
 	if len(v) != r*c {
 		panic(ErrInLength)
@@ -199,6 +204,7 @@ func (m *Dense) SetData(v []float64) {
 			k += c
 		}
 	}
+	return m
 }
 
 func (m *Dense) GetDiag(out []float64) []float64 {
@@ -213,7 +219,7 @@ func (m *Dense) GetDiag(out []float64) []float64 {
 	return out
 }
 
-func (m *Dense) SetDiag(v []float64) {
+func (m *Dense) SetDiag(v []float64) *Dense {
 	if m.rows != m.cols {
 		panic(ErrSquare)
 	}
@@ -224,9 +230,10 @@ func (m *Dense) SetDiag(v []float64) {
 		m.data[i] = v[j]
 		j++
 	}
+	return m
 }
 
-func (m *Dense) FillDiag(v float64) {
+func (m *Dense) FillDiag(v float64) *Dense {
 	if m.rows != m.cols {
 		panic(ErrSquare)
 	}
@@ -234,10 +241,12 @@ func (m *Dense) FillDiag(v float64) {
 		m.data[k] = v
 		k += m.stride + 1
 	}
+	return m
 }
 
-func (m *Dense) Fill(v float64) {
+func (m *Dense) Fill(v float64) *Dense {
 	element_wise_unary(m, v, m, fill)
+	return m
 }
 
 func Copy(dest *Dense, src *Dense) {
@@ -282,16 +291,16 @@ func Shift(m *Dense, v float64, out *Dense) *Dense {
 	return element_wise_unary(m, v, out, shift)
 }
 
-func (m *Dense) Shift(v float64) {
-	Shift(m, v, m)
+func (m *Dense) Shift(v float64) *Dense {
+	return Shift(m, v, m)
 }
 
 func Scale(m *Dense, v float64, out *Dense) *Dense {
 	return element_wise_unary(m, v, out, scale)
 }
 
-func (m *Dense) Scale(v float64) {
-	Scale(m, v, m)
+func (m *Dense) Scale(v float64) *Dense {
+	return Scale(m, v, m)
 }
 
 func element_wise_binary(a, b, out *Dense,
@@ -315,8 +324,8 @@ func Add(a, b, out *Dense) *Dense {
 	return element_wise_binary(a, b, out, add)
 }
 
-func (m *Dense) Add(X *Dense) {
-	Add(m, X, m)
+func (m *Dense) Add(X *Dense) *Dense {
+	return Add(m, X, m)
 }
 
 func AddScaled(a, b *Dense, s float64, out *Dense) *Dense {
@@ -334,24 +343,24 @@ func AddScaled(a, b *Dense, s float64, out *Dense) *Dense {
 	return out
 }
 
-func (m *Dense) AddScaled(X *Dense, s float64) {
-	AddScaled(m, X, s, m)
+func (m *Dense) AddScaled(X *Dense, s float64) *Dense {
+	return AddScaled(m, X, s, m)
 }
 
 func Subtract(a, b, out *Dense) *Dense {
 	return element_wise_binary(a, b, out, subtract)
 }
 
-func (m *Dense) Subtract(X *Dense) {
-	Subtract(m, X, m)
+func (m *Dense) Subtract(X *Dense) *Dense {
+	return Subtract(m, X, m)
 }
 
 func Elemult(a, b, out *Dense) *Dense {
 	return element_wise_binary(a, b, out, multiply)
 }
 
-func (m *Dense) Elemult(X *Dense) {
-	Elemult(m, X, m)
+func (m *Dense) Elemult(X *Dense) *Dense {
+	return Elemult(m, X, m)
 }
 
 func Mult(a, b, out *Dense) *Dense {
@@ -557,8 +566,8 @@ func Apply(
 	return out
 }
 
-func (m *Dense) Apply(f func(int, int, float64) float64) {
-	Apply(m, f, m)
+func (m *Dense) Apply(f func(int, int, float64) float64) *Dense {
+	return Apply(m, f, m)
 }
 
 func T(m, out *Dense) *Dense {
@@ -591,13 +600,14 @@ func Upper(a, out *Dense) *Dense {
 	return out
 }
 
-func (m *Dense) ZeroLower() {
+func (m *Dense) ZeroLower() *Dense {
 	if m.rows != m.cols {
 		panic(ErrSquare)
 	}
 	for i := 1; i < m.rows; i++ {
 		zero(m.RowView(i)[:i])
 	}
+	return m
 }
 
 func Lower(a, out *Dense) *Dense {
@@ -619,13 +629,14 @@ func Lower(a, out *Dense) *Dense {
 	return out
 }
 
-func (m *Dense) ZeroUpper() {
+func (m *Dense) ZeroUpper() *Dense {
 	if m.rows != m.cols {
 		panic(ErrSquare)
 	}
 	for i := 0; i < m.rows-1; i++ {
 		zero(m.RowView(i)[(i + 1):])
 	}
+	return m
 }
 
 func (m *Dense) Equals(b *Dense) bool {
