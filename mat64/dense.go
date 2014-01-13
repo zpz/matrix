@@ -126,6 +126,10 @@ func (m *Dense) SetCol(c int, v []float64) *Dense {
 	return m
 }
 
+// SubmatrixView returns a "view" to the specified sub-matrix.
+// Changes made to the elements of this view-matrix are reflected in the
+// original matrix, and vice versa. This function does not allocate new memory,
+// because the view points to the data of the original matrix.
 func (m *Dense) SubmatrixView(i, j, r, c int) *Dense {
 	if i < 0 || i >= m.rows || r <= 0 || i+r > m.rows {
 		panic(ErrIndexOutOfRange)
@@ -142,14 +146,29 @@ func (m *Dense) SubmatrixView(i, j, r, c int) *Dense {
 	return &out
 }
 
-func (m *Dense) GetSubmatrix(i, j, r, c int, out *Dense) *Dense {
-	out = use_dense(out, r, c, ErrOutShape)
-	Copy(out, m.SubmatrixView(i, j, r, c))
-	return out
+// GetSubmatrix copies all elements in the specified submatrix
+// into slice out, row by row. If out is nil, a new slice is created;
+// otherwise, out must have the correct length, and it is written into.
+// The stuffed slice is returned.
+// Note that the output is a slice rather than a matrix.
+// To copy out the submatrix into a matrix, use
+//    Copy(dest, src.SubmatrixView(...))
+// or
+//    Clone(src.SubmatrixView(...))
+func (m *Dense) GetSubmatrix(i, j, r, c int, out []float64) []float64 {
+	return m.SubmatrixView(i, j, r, c).GetData(out)
 }
 
+// SetSubmatrix copies values in slice v to the specified submatrix,
+// row by row. The receiver matrix is updated in-place, and is also
+// returned.
+// Note that the source is a slice rather than a matrix.
+// To copy into the submatrix from a matrix, use
+//    Copy(dest.SubmatrixView(...), src)
 func (m *Dense) SetSubmatrix(i, j, r, c int, v []float64) *Dense {
 	m.SubmatrixView(i, j, r, c).SetData(v)
+	// Note: do not 'return' this line; that would return the
+	// submatrix, not m.
 	return m
 }
 
@@ -167,9 +186,9 @@ func (m *Dense) DataView() []float64 {
 	// TODO: return nil here or panic?
 }
 
-// GetData copies out all elements of the matrix, row by row.
-// If out is nil, a slice is allocated;
-// otherwise out must have the right length.
+// GetData copies out all elements of the matrix, row by row, in the
+// slice out.  If out is nil, a new slice is created; otherwise out must
+// have the correct length.
 // The copied slice is returned.
 func (m *Dense) GetData(out []float64) []float64 {
 	out = use_slice(out, m.rows*m.cols, ErrOutLength)
@@ -191,6 +210,7 @@ func (m *Dense) GetData(out []float64) []float64 {
 // values for the second row, and so on.
 // Length of v must be equal to the total number of elements in the
 // matrix.
+// The matrix is updated in-place, and is also returned.
 func (m *Dense) SetData(v []float64) *Dense {
 	r, c := m.rows, m.cols
 	if len(v) != r*c {
@@ -249,6 +269,9 @@ func (m *Dense) Fill(v float64) *Dense {
 	return m
 }
 
+// Copy copies the elements of src into dest.
+// dest must have the correct dimensions; it can not be nil.
+// To create a new matrix and copy into it, use Clone.
 func Copy(dest *Dense, src *Dense) {
 	if dest.rows != src.rows || dest.cols != src.cols {
 		panic(ErrShape)
@@ -267,6 +290,9 @@ func Copy(dest *Dense, src *Dense) {
 // Note that while src could be a submatrix of a larger matrix,
 // the cloned matrix is always freshly allocated and is its own
 // entirety.
+// Note the "always allocate a new one" nature of Clone.
+// To copy into an existing matrix (including a submatrix),
+// use Copy instead.
 func Clone(src *Dense) *Dense {
 	out := NewDense(src.rows, src.cols)
 	Copy(out, src)
@@ -287,18 +313,28 @@ func element_wise_unary(a *Dense, val float64, out *Dense,
 	return out
 }
 
+// Shift adds constant v to every element of m,
+// returns the new values in matrix out.
+// out may be m itself, amounting to in-place update.
 func Shift(m *Dense, v float64, out *Dense) *Dense {
 	return element_wise_unary(m, v, out, shift)
 }
 
+// Shift adds constant v to each element of m.
+// The update is in-place; the updated matrix is also returned.
 func (m *Dense) Shift(v float64) *Dense {
 	return Shift(m, v, m)
 }
 
+// Shift multiplies each element of m by constant v,
+// returns the new values in matrix out.
+// out may be m itself, amounting to in-place update.
 func Scale(m *Dense, v float64, out *Dense) *Dense {
 	return element_wise_unary(m, v, out, scale)
 }
 
+// Scale multiplies each element of m by constant v.
+// The update is in-place; the updated matrix is also returned.
 func (m *Dense) Scale(v float64) *Dense {
 	return Scale(m, v, m)
 }
@@ -320,14 +356,28 @@ func element_wise_binary(a, b, out *Dense,
 	return out
 }
 
+// Add adds matrices a and b, place the result in out and return out.
+// If out is nil, a new matrix is allocated and used, and returned.
+// If out is non-nil, it must have the correct shape.
+// out may be one of a and b, that is, add a and b and place the result
+// in a (or b, depending on which one out is).
 func Add(a, b, out *Dense) *Dense {
 	return element_wise_binary(a, b, out, add)
 }
 
+// Add adds matrix X to the receiver matrix.
+// The receiver matrix is modified in-place;
+// the modified receiver matrix is also returned.
 func (m *Dense) Add(X *Dense) *Dense {
 	return Add(m, X, m)
 }
 
+// AddScaled adds matrix a and matrix b scaled by constant s,
+// and place the result in matrix out, which is returned.
+// If out is nil, a new matrix is allocated, used, and returned.
+// If out is non-nil, it must have the correct shape.
+// out may be one of a and b, that is, one of the input matrices holds
+// the result.
 func AddScaled(a, b *Dense, s float64, out *Dense) *Dense {
 	if a.rows != b.rows || a.cols != b.cols {
 		panic(ErrShape)
@@ -343,26 +393,37 @@ func AddScaled(a, b *Dense, s float64, out *Dense) *Dense {
 	return out
 }
 
+// AddScaled adds X scaled by constant s to the receiver matrix.
+// The receiver matrix is updated in-place, and is also returned.
 func (m *Dense) AddScaled(X *Dense, s float64) *Dense {
 	return AddScaled(m, X, s, m)
 }
 
+// Subtract is analogous to Add.
 func Subtract(a, b, out *Dense) *Dense {
 	return element_wise_binary(a, b, out, subtract)
 }
 
+// Subtract is analogous to Add.
 func (m *Dense) Subtract(X *Dense) *Dense {
 	return Subtract(m, X, m)
 }
 
+// Elemult does element-wise multiplication in a way analogous to Add
+// and Subtract.
 func Elemult(a, b, out *Dense) *Dense {
 	return element_wise_binary(a, b, out, multiply)
 }
 
+// Elemult does element-wise multiplication in a way analogous to Add
+// and Subtract.
 func (m *Dense) Elemult(X *Dense) *Dense {
 	return Elemult(m, X, m)
 }
 
+// Mult multiplies matrices a and b, place the result in out, and return
+// out. If out is nil, a new matrix is allocated and used.
+// TODO: find out whether out can be one of a and b.
 func Mult(a, b, out *Dense) *Dense {
 	ar, ac := a.Dims()
 	br, bc := b.Dims()
@@ -548,8 +609,15 @@ func (m *Dense) Norm(ord float64) float64 {
 	return n
 }
 
-// Function f takes a row/column index and element value
-// and returns some function of that tuple.
+// Apply applies function f to each element of m, place the results in
+// out, and return out.
+// f takes the row index, col index, and entry value, and outputs a
+// value.
+// Row and col indices are zero-based.
+// If out is nil, a new matrix is allocated and used;
+// otherwise out must have the correct shape, that is, the same shape as
+// m.
+// out may be m itself, amounting to in-place update.
 func Apply(
 	m *Dense,
 	f func(r, c int, v float64) float64,
@@ -566,19 +634,45 @@ func Apply(
 	return out
 }
 
+// Apply updates each element of m by calling the function f,
+// which takes the row index, col index, and the element's value.
+// Row and col indices are zero-based.
+// The matrix m is modified in-place, and is also returned.
 func (m *Dense) Apply(f func(int, int, float64) float64) *Dense {
 	return Apply(m, f, m)
 }
 
+// T transposes m, places the result in out, and returns out.
+// If out is nil, a new matrix is allocated and used;
+// otherwise out must have the correct shape.
+// If m is square, out can be m itself.
 func T(m, out *Dense) *Dense {
 	out = use_dense(out, m.cols, m.rows, ErrOutShape)
-	for row := 0; row < m.rows; row++ {
-		z := m.RowView(row)
-		for col, val := range z {
-			out.Set(col, row, val)
+	if m.rows == m.cols {
+		for row := 0; row < m.rows; row++ {
+			for col := 0; col < row; col++ {
+				z := m.Get(row, col)
+				out.Set(row, col, m.Get(col, row))
+				out.Set(col, row, z)
+			}
+			out.Set(row, row, m.Get(row, row))
+		}
+	} else {
+		for row := 0; row < m.rows; row++ {
+			out.SetCol(row, m.RowView(row))
 		}
 	}
 	return out
+}
+
+// T transposes the square receiver matrix in-place,
+// and also returns the transposed matrix.
+func (m *Dense) T() *Dense {
+	if m.rows != m.cols {
+		panic(ErrSquare)
+	}
+	T(m, m)
+	return m
 }
 
 func Upper(a, out *Dense) *Dense {
