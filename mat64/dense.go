@@ -46,27 +46,11 @@ func (m *Dense) LoadData(data []float64, r, c int) {
 	m.data = data
 }
 
-func (m *Dense) isZero() bool {
-	return m.cols == 0 || m.rows == 0
-}
-
 func (m *Dense) Dims() (r, c int) { return m.rows, m.cols }
 
 func (m *Dense) Rows() int { return m.rows }
 
 func (m *Dense) Cols() int { return m.cols }
-
-func (m *Dense) validate_row_idx(r int) {
-	if r >= m.rows || r < 0 {
-		panic(ErrIndexOutOfRange)
-	}
-}
-
-func (m *Dense) validate_col_idx(c int) {
-	if c >= m.cols || c < 0 {
-		panic(ErrIndexOutOfRange)
-	}
-}
 
 // Contiguous reports whether the data of the matrix is stored
 // in a contiguous segment of a slice.
@@ -86,7 +70,9 @@ func (m *Dense) Set(r, c int, v float64) {
 }
 
 func (m *Dense) RowView(r int) []float64 {
-	m.validate_row_idx(r)
+	if r >= m.rows || r < 0 {
+		panic(ErrIndexOutOfRange)
+	}
 	k := r * m.stride
 	return m.data[k : k+m.cols]
 }
@@ -108,7 +94,9 @@ func (m *Dense) SetRow(r int, v []float64) {
 // There is no ColView b/c of row-major.
 
 func (m *Dense) GetCol(c int, col []float64) []float64 {
-	m.validate_col_idx(c)
+	if c >= m.cols || c < 0 {
+		panic(ErrIndexOutOfRange)
+	}
 	col = use_slice(col, m.rows, ErrOutLength)
 
 	if blasEngine == nil {
@@ -120,7 +108,9 @@ func (m *Dense) GetCol(c int, col []float64) []float64 {
 }
 
 func (m *Dense) SetCol(c int, v []float64) {
-	m.validate_col_idx(c)
+	if c >= m.cols || c < 0 {
+		panic(ErrIndexOutOfRange)
+	}
 
 	if len(v) != m.rows {
 		panic(ErrInLength)
@@ -408,6 +398,26 @@ func (m *Dense) Dot(b *Dense) float64 {
 	return Dot(m, b)
 }
 
+func Hstack(a, b, out *Dense) *Dense {
+	if a.rows != b.rows {
+		panic(ErrShape)
+	}
+	out = use_dense(out, a.rows, a.cols+b.cols, ErrOutShape)
+	Copy(out.SubmatrixView(0, 0, a.rows, a.cols), a)
+	Copy(out.SubmatrixView(0, a.cols, b.rows, b.cols), b)
+	return out
+}
+
+func Vstack(a, b, out *Dense) *Dense {
+	if a.cols != b.cols {
+		panic(ErrShape)
+	}
+	out = use_dense(out, a.rows+b.rows, a.cols, ErrOutShape)
+	Copy(out.SubmatrixView(0, 0, a.rows, a.cols), a)
+	Copy(out.SubmatrixView(a.rows, 0, b.rows, b.cols), b)
+	return out
+}
+
 func (m *Dense) Min() float64 {
 	if m.Contiguous() {
 		return min(m.DataView())
@@ -456,6 +466,10 @@ func (m *Dense) Trace() float64 {
 		t += m.data[i]
 	}
 	return t
+}
+
+func Trace(m *Dense) float64 {
+	return m.Trace()
 }
 
 var inf = math.Inf(1)
@@ -558,69 +572,59 @@ func T(m, out *Dense) *Dense {
 	return out
 }
 
-func (m *Dense) U(a *Dense) {
-	ar, ac := a.Dims()
-	if ar != ac {
+func Upper(a, out *Dense) *Dense {
+	if a.rows != a.cols {
 		panic(ErrSquare)
 	}
-
-	switch {
-	case m == a:
-		m.zeroLower()
-		return
-	case m.isZero():
-		m.rows = ar
-		m.cols = ac
-		m.stride = ac
-		m.data = use_slice(m.data, ar*ac, ErrInLength)
-	case ar != m.rows || ac != m.cols:
-		panic(ErrShape)
+	if out == nil {
+		out = NewDense(a.rows, a.cols)
+	} else {
+		if out.rows != a.rows || out.cols != a.cols {
+			panic(ErrOutShape)
+		}
+		out.ZeroLower()
 	}
 
-	copy(m.data[:ac], a.data[:ac])
-	for j, ja, jm := 1, a.stride, m.stride; ja < ar*a.stride; j, ja, jm = j+1, ja+a.stride, jm+m.stride {
-		zero(m.data[jm : jm+j])
-		copy(m.data[jm+j:jm+ac], a.data[ja+j:ja+ac])
+	for row := 0; row < a.rows; row++ {
+		copy(out.RowView(row)[row:], a.RowView(row)[row:])
 	}
-	return
+	return out
 }
 
-func (m *Dense) zeroLower() {
+func (m *Dense) ZeroLower() {
+	if m.rows != m.cols {
+		panic(ErrSquare)
+	}
 	for i := 1; i < m.rows; i++ {
-		zero(m.data[i*m.stride : i*m.stride+i])
+		zero(m.RowView(i)[:i])
 	}
 }
 
-func (m *Dense) L(a *Dense) {
-	ar, ac := a.Dims()
-	if ar != ac {
+func Lower(a, out *Dense) *Dense {
+	if a.rows != a.cols {
 		panic(ErrSquare)
 	}
-
-	switch {
-	case m == a:
-		m.zeroUpper()
-		return
-	case m.isZero():
-		m.rows = ar
-		m.cols = ac
-		m.stride = ac
-		m.data = use_slice(m.data, ar*ac, ErrInLength)
-	case ar != m.rows || ac != m.cols:
-		panic(ErrShape)
+	if out == nil {
+		out = NewDense(a.rows, a.cols)
+	} else {
+		if out.rows != a.rows || out.cols != a.cols {
+			panic(ErrOutShape)
+		}
+		out.ZeroUpper()
 	}
 
-	copy(m.data[:ar], a.data[:ar])
-	for j, ja, jm := 1, a.stride, m.stride; ja < ac*a.stride; j, ja, jm = j+1, ja+a.stride, jm+m.stride {
-		zero(m.data[jm : jm+j])
-		copy(m.data[jm+j:jm+ar], a.data[ja+j:ja+ar])
+	for row := 0; row < a.rows; row++ {
+		copy(out.RowView(row)[:row+1], a.RowView(row)[:row+1])
 	}
-	return
+	return out
 }
 
-func (m *Dense) zeroUpper() {
+func (m *Dense) ZeroUpper() {
+	if m.rows != m.cols {
+		panic(ErrSquare)
+	}
 	for i := 0; i < m.rows-1; i++ {
-		zero(m.data[i*m.stride+i+1 : (i+1)*m.stride])
+		zero(m.RowView(i)[(i + 1):])
 	}
 }
 

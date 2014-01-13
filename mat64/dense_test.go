@@ -5,8 +5,8 @@
 package mat64
 
 import (
-	"github.com/gonum/blas/cblas"
 	"fmt"
+	"github.com/gonum/blas/cblas"
 	check "launchpad.net/gocheck"
 	"math/rand"
 	"testing"
@@ -423,13 +423,8 @@ func (s *S) TestLU(c *check.C) {
 		}
 		c.Assert(err, check.Equals, nil)
 
-		var (
-			u, l Dense
-			rc   *Dense
-		)
-
-		u.U(r)
-		l.L(r)
+		u := Upper(r, nil)
+		l := Lower(r, nil)
 		for m := 0; m < size; m++ {
 			for n := 0; n < size; n++ {
 				switch {
@@ -444,8 +439,7 @@ func (s *S) TestLU(c *check.C) {
 			}
 		}
 
-		rc = Clone(r)
-		rc.U(rc)
+		rc := Upper(r, nil)
 		for m := 0; m < size; m++ {
 			for n := 0; n < size; n++ {
 				switch {
@@ -459,8 +453,7 @@ func (s *S) TestLU(c *check.C) {
 			}
 		}
 
-		rc = Clone(r)
-		rc.L(rc)
+		rc = Lower(r, nil)
 		for m := 0; m < size; m++ {
 			for n := 0; n < size; n++ {
 				switch {
