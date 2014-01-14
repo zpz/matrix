@@ -41,7 +41,7 @@ type EigenFactors struct {
 func Eigen(a *Dense, epsilon float64) EigenFactors {
 	m, n := a.Dims()
 	if m != n {
-		panic(ErrSquare)
+		panic(errSquare)
 	}
 
 	var v *Dense
@@ -809,7 +809,7 @@ func (f EigenFactors) D() *Dense {
 	d, e := f.d, f.e
 	var n int
 	if n = len(d); n != len(e) {
-		panic(ErrSquare)
+		panic(errSquare)
 	}
 	dm := NewDense(n, n)
 	for i := 0; i < n; i++ {

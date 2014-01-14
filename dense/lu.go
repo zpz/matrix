@@ -202,7 +202,7 @@ func (f LUFactors) Det() float64 {
 	lu, sign := f.LU, f.Sign
 	m, n := lu.Dims()
 	if m != n {
-		panic(ErrSquare)
+		panic(errSquare)
 	}
 	d := float64(sign)
 	for j := 0; j < n; j++ {
@@ -219,7 +219,7 @@ func (f LUFactors) Solve(b *Dense) (x *Dense) {
 	m, n := lu.Dims()
 	bm, bn := b.Dims()
 	if bm != m {
-		panic(ErrShape)
+		panic(errShape)
 	}
 	if f.IsSingular() {
 		panic("mat64: matrix is singular")

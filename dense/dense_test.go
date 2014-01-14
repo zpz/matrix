@@ -54,7 +54,7 @@ func (s *S) TestMaybe(c *check.C) {
 			true,
 		},
 		{
-			func() { panic(Error("panic")) },
+			func() { panic(err("panic")) },
 			false,
 		},
 	} {
@@ -418,13 +418,17 @@ func (s *S) TestLU(c *check.C) {
 		size := rand.Intn(100)
 		r, err := randDense(size, rand.Float64(), rand.NormFloat64)
 		if size == 0 {
-			c.Check(err, check.Equals, ErrZeroLength)
+			c.Check(err, check.Equals, errZeroLength)
 			continue
 		}
 		c.Assert(err, check.Equals, nil)
 
-		u := Upper(r, nil)
-		l := Lower(r, nil)
+		u := NewDense(r.Rows(), r.Cols())
+		CopyUpper(u, r)
+		CopyDiag(u, r)
+		l := NewDense(r.Rows(), r.Cols())
+		CopyLower(l, r)
+		CopyDiag(l, r)
 		for m := 0; m < size; m++ {
 			for n := 0; n < size; n++ {
 				switch {
@@ -439,7 +443,9 @@ func (s *S) TestLU(c *check.C) {
 			}
 		}
 
-		rc := Upper(r, nil)
+		rc := NewDense(r.Rows(), r.Cols())
+		CopyUpper(rc, r)
+		CopyDiag(rc, r)
 		for m := 0; m < size; m++ {
 			for n := 0; n < size; n++ {
 				switch {
@@ -453,7 +459,9 @@ func (s *S) TestLU(c *check.C) {
 			}
 		}
 
-		rc = Lower(r, nil)
+		CopyLower(rc, r)
+		CopyDiag(rc, r)
+		rc.FillUpper(0.0)
 		for m := 0; m < size; m++ {
 			for n := 0; n < size; n++ {
 				switch {

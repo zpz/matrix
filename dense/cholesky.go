@@ -94,7 +94,7 @@ func (f CholeskyFactor) Solve(b *Dense) (x *Dense) {
 	_, n := l.Dims()
 	_, bn := b.Dims()
 	if n != bn {
-		panic(ErrShape)
+		panic(errShape)
 	}
 
 	nx := bn

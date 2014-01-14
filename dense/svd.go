@@ -33,7 +33,7 @@ func SVD(a *Dense, epsilon, small float64, wantu, wantv bool) SVDFactors {
 	// Apparently the failing cases are only a proper subset of (m<n),
 	// so let's not panic. Correct fix to come later?
 	// if m < n {
-	// 	panic(ErrShape)
+	// 	panic(errShape)
 	// }
 
 	sigma := make([]float64, smaller(m+1, n))

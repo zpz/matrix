@@ -38,7 +38,7 @@ func NewDense(r, c int) *Dense {
 
 func (m *Dense) LoadData(data []float64, r, c int) *Dense {
 	if len(data) != r*c {
-		panic(ErrInLength)
+		panic(errInLength)
 	}
 	m.rows = r
 	m.cols = c
@@ -73,21 +73,21 @@ func (m *Dense) Set(r, c int, v float64) *Dense {
 
 func (m *Dense) RowView(r int) []float64 {
 	if r >= m.rows || r < 0 {
-		panic(ErrIndexOutOfRange)
+		panic(errIndexOutOfRange)
 	}
 	k := r * m.stride
 	return m.data[k : k+m.cols]
 }
 
 func (m *Dense) GetRow(r int, row []float64) []float64 {
-	row = use_slice(row, m.cols, ErrOutLength)
+	row = use_slice(row, m.cols, errOutLength)
 	copy(row, m.RowView(r))
 	return row
 }
 
 func (m *Dense) SetRow(r int, v []float64) *Dense {
 	if len(v) != m.cols {
-		panic(ErrInLength)
+		panic(errInLength)
 	}
 	copy(m.RowView(r), v)
 	return m
@@ -98,12 +98,12 @@ func (m *Dense) SetRow(r int, v []float64) *Dense {
 
 func (m *Dense) GetCol(c int, col []float64) []float64 {
 	if c >= m.cols || c < 0 {
-		panic(ErrIndexOutOfRange)
+		panic(errIndexOutOfRange)
 	}
-	col = use_slice(col, m.rows, ErrOutLength)
+	col = use_slice(col, m.rows, errOutLength)
 
 	if blasEngine == nil {
-		panic(ErrNoEngine)
+		panic(errNoEngine)
 	}
 	blasEngine.Dcopy(m.rows, m.data[c:], m.stride, col, 1)
 
@@ -112,15 +112,15 @@ func (m *Dense) GetCol(c int, col []float64) []float64 {
 
 func (m *Dense) SetCol(c int, v []float64) *Dense {
 	if c >= m.cols || c < 0 {
-		panic(ErrIndexOutOfRange)
+		panic(errIndexOutOfRange)
 	}
 
 	if len(v) != m.rows {
-		panic(ErrInLength)
+		panic(errInLength)
 	}
 
 	if blasEngine == nil {
-		panic(ErrNoEngine)
+		panic(errNoEngine)
 	}
 	blasEngine.Dcopy(m.rows, v, 1, m.data[c:], m.stride)
 	return m
@@ -132,10 +132,10 @@ func (m *Dense) SetCol(c int, v []float64) *Dense {
 // because the view points to the data of the original matrix.
 func (m *Dense) SubmatrixView(i, j, r, c int) *Dense {
 	if i < 0 || i >= m.rows || r <= 0 || i+r > m.rows {
-		panic(ErrIndexOutOfRange)
+		panic(errIndexOutOfRange)
 	}
 	if j < 0 || j >= m.cols || c <= 0 || j+c > m.cols {
-		panic(ErrIndexOutOfRange)
+		panic(errIndexOutOfRange)
 	}
 
 	out := Dense{}
@@ -191,7 +191,7 @@ func (m *Dense) DataView() []float64 {
 // have the correct length.
 // The copied slice is returned.
 func (m *Dense) GetData(out []float64) []float64 {
-	out = use_slice(out, m.rows*m.cols, ErrOutLength)
+	out = use_slice(out, m.rows*m.cols, errOutLength)
 	if m.Contiguous() {
 		copy(out, m.DataView())
 	} else {
@@ -214,7 +214,7 @@ func (m *Dense) GetData(out []float64) []float64 {
 func (m *Dense) SetData(v []float64) *Dense {
 	r, c := m.rows, m.cols
 	if len(v) != r*c {
-		panic(ErrInLength)
+		panic(errInLength)
 	}
 	if m.Contiguous() {
 		copy(m.DataView(), v)
@@ -227,11 +227,16 @@ func (m *Dense) SetData(v []float64) *Dense {
 	return m
 }
 
+func (m *Dense) Fill(v float64) *Dense {
+	element_wise_unary(m, v, m, fill)
+	return m
+}
+
 func (m *Dense) GetDiag(out []float64) []float64 {
 	if m.rows != m.cols {
-		panic(ErrSquare)
+		panic(errSquare)
 	}
-	out = use_slice(out, m.rows, ErrOutLength)
+	out = use_slice(out, m.rows, errOutLength)
 	for i, j := 0, 0; i < m.rows; i += m.stride + 1 {
 		out[j] = m.data[i]
 		j++
@@ -241,10 +246,10 @@ func (m *Dense) GetDiag(out []float64) []float64 {
 
 func (m *Dense) SetDiag(v []float64) *Dense {
 	if m.rows != m.cols {
-		panic(ErrSquare)
+		panic(errSquare)
 	}
 	if len(v) != m.rows {
-		panic(ErrInLength)
+		panic(errInLength)
 	}
 	for i, j := 0, 0; i < m.rows; i += m.stride + 1 {
 		m.data[i] = v[j]
@@ -255,7 +260,7 @@ func (m *Dense) SetDiag(v []float64) *Dense {
 
 func (m *Dense) FillDiag(v float64) *Dense {
 	if m.rows != m.cols {
-		panic(ErrSquare)
+		panic(errSquare)
 	}
 	for row, k := 0, 0; row < m.rows; row++ {
 		m.data[k] = v
@@ -264,17 +269,12 @@ func (m *Dense) FillDiag(v float64) *Dense {
 	return m
 }
 
-func (m *Dense) Fill(v float64) *Dense {
-	element_wise_unary(m, v, m, fill)
-	return m
-}
-
 // Copy copies the elements of src into dest.
 // dest must have the correct dimensions; it can not be nil.
 // To create a new matrix and copy into it, use Clone.
 func Copy(dest *Dense, src *Dense) {
 	if dest.rows != src.rows || dest.cols != src.cols {
-		panic(ErrShape)
+		panic(errShape)
 	}
 	if dest.Contiguous() && src.Contiguous() {
 		copy(dest.DataView(), src.DataView())
@@ -299,10 +299,90 @@ func Clone(src *Dense) *Dense {
 	return out
 }
 
+// CopyDiag copies the diagonal elements of the square matrix src
+// to the corresponding locations in dest.
+// dest must have the correct shape;
+// its off-diagonal elements are not changed.
+func CopyDiag(dest, src *Dense) {
+	if src.rows != src.cols {
+		panic(errSquare)
+	}
+	if dest.rows != src.rows || dest.cols != src.cols {
+		panic(errOutShape)
+	}
+	for row, kd, ks := 0, 0, 0; row < src.rows; row++ {
+		dest.data[kd] = src.data[ks]
+		kd += dest.stride + 1
+		ks += src.stride + 1
+	}
+}
+
+// CopyUpper copies the upper triangular (i.e. above diagonal)
+// elements of the square matrix src into the corresponding
+// locations in dest.
+// dest must have the correct shape; its diagonal and lower diagonal
+// elements are not changed.
+func CopyUpper(dest, src *Dense) {
+	if src.rows != src.cols {
+		panic(errSquare)
+	}
+	if dest.rows != src.rows || dest.cols != src.cols {
+		panic(errOutShape)
+	}
+	for row := 0; row < src.rows-1; row++ {
+		copy(dest.RowView(row)[row+1:], src.RowView(row)[row+1:])
+	}
+}
+
+// CopyLower copies the lower triangular (i.e. below diagonal)
+// elements of the square matrix src into the corresponding
+// locations in dest.
+// dest must have the correct shape; its diagonal and upper diagonal
+// elements are not changed.
+func CopyLower(dest, src *Dense) {
+	if src.rows != src.cols {
+		panic(errSquare)
+	}
+	if dest.rows != src.rows || dest.cols != src.cols {
+		panic(errOutShape)
+	}
+	for row := 1; row < src.rows; row++ {
+		copy(dest.RowView(row)[:row], src.RowView(row)[:row])
+	}
+}
+
+// FillLower sets the lower-triangular (i.e. below diagonal) elements
+// of the square receiver matrix m to the value v,
+// and return the modified m.
+// A typical use of this method is to fill with the value zero.
+func (m *Dense) FillLower(v float64) *Dense {
+	if m.rows != m.cols {
+		panic(errSquare)
+	}
+	for i := 1; i < m.rows; i++ {
+		fill(nil, v, m.RowView(i)[:i])
+	}
+	return m
+}
+
+// FillUpper sets the upper-triangular (i.e. above diagonal) elements
+// of the square receiver matrix m to the value v,
+// and return the modified m.
+// A typical use of this method is to fill with the value zero.
+func (m *Dense) FillUpper(v float64) *Dense {
+	if m.rows != m.cols {
+		panic(errSquare)
+	}
+	for i := 0; i < m.rows-1; i++ {
+		fill(nil, v, m.RowView(i)[(i+1):])
+	}
+	return m
+}
+
 func element_wise_unary(a *Dense, val float64, out *Dense,
 	f func(a []float64, val float64, out []float64) []float64) *Dense {
 
-	out = use_dense(out, a.rows, a.cols, ErrOutShape)
+	out = use_dense(out, a.rows, a.cols, errOutShape)
 	if a.Contiguous() && out.Contiguous() {
 		f(a.DataView(), val, out.DataView())
 		return out
@@ -343,9 +423,9 @@ func element_wise_binary(a, b, out *Dense,
 	f func(a, b, out []float64) []float64) *Dense {
 
 	if a.rows != b.rows || a.cols != b.cols {
-		panic(ErrShape)
+		panic(errShape)
 	}
-	out = use_dense(out, a.rows, a.cols, ErrOutShape)
+	out = use_dense(out, a.rows, a.cols, errOutShape)
 	if a.Contiguous() && b.Contiguous() && out.Contiguous() {
 		f(a.DataView(), b.DataView(), out.DataView())
 		return out
@@ -380,9 +460,9 @@ func (m *Dense) Add(X *Dense) *Dense {
 // the result.
 func AddScaled(a, b *Dense, s float64, out *Dense) *Dense {
 	if a.rows != b.rows || a.cols != b.cols {
-		panic(ErrShape)
+		panic(errShape)
 	}
-	out = use_dense(out, a.rows, a.cols, ErrOutShape)
+	out = use_dense(out, a.rows, a.cols, errOutShape)
 	if a.Contiguous() && b.Contiguous() && out.Contiguous() {
 		add_scaled(a.DataView(), b.DataView(), s, out.DataView())
 		return out
@@ -429,13 +509,13 @@ func Mult(a, b, out *Dense) *Dense {
 	br, bc := b.Dims()
 
 	if ac != br {
-		panic(ErrShape)
+		panic(errShape)
 	}
 
-	out = use_dense(out, ar, bc, ErrOutShape)
+	out = use_dense(out, ar, bc, errOutShape)
 
 	if blasEngine == nil {
-		panic(ErrNoEngine)
+		panic(errNoEngine)
 	}
 	blasEngine.Dgemm(
 		BlasOrder,
@@ -452,7 +532,7 @@ func Mult(a, b, out *Dense) *Dense {
 
 func Dot(a, b *Dense) float64 {
 	if a.rows != b.rows || a.cols != b.cols {
-		panic(ErrShape)
+		panic(errShape)
 	}
 	if a.Contiguous() && b.Contiguous() {
 		return dot(a.DataView(), b.DataView())
@@ -464,15 +544,11 @@ func Dot(a, b *Dense) float64 {
 	return d
 }
 
-func (m *Dense) Dot(b *Dense) float64 {
-	return Dot(m, b)
-}
-
 func Hstack(a, b, out *Dense) *Dense {
 	if a.rows != b.rows {
-		panic(ErrShape)
+		panic(errShape)
 	}
-	out = use_dense(out, a.rows, a.cols+b.cols, ErrOutShape)
+	out = use_dense(out, a.rows, a.cols+b.cols, errOutShape)
 	Copy(out.SubmatrixView(0, 0, a.rows, a.cols), a)
 	Copy(out.SubmatrixView(0, a.cols, b.rows, b.cols), b)
 	return out
@@ -480,9 +556,9 @@ func Hstack(a, b, out *Dense) *Dense {
 
 func Vstack(a, b, out *Dense) *Dense {
 	if a.cols != b.cols {
-		panic(ErrShape)
+		panic(errShape)
 	}
-	out = use_dense(out, a.rows+b.rows, a.cols, ErrOutShape)
+	out = use_dense(out, a.rows+b.rows, a.cols, errOutShape)
 	Copy(out.SubmatrixView(0, 0, a.rows, a.cols), a)
 	Copy(out.SubmatrixView(a.rows, 0, b.rows, b.cols), b)
 	return out
@@ -529,17 +605,13 @@ func (m *Dense) Sum() float64 {
 
 func (m *Dense) Trace() float64 {
 	if m.rows != m.cols {
-		panic(ErrSquare)
+		panic(errSquare)
 	}
 	var t float64
 	for i, n := 0, m.rows*m.cols; i < n; i += m.stride + 1 {
 		t += m.data[i]
 	}
 	return t
-}
-
-func Trace(m *Dense) float64 {
-	return m.Trace()
 }
 
 var inf = math.Inf(1)
@@ -603,7 +675,7 @@ func (m *Dense) Norm(ord float64) float64 {
 		}
 		return s[len(s)-1]
 	default:
-		panic(ErrNormOrder)
+		panic(errNormOrder)
 	}
 
 	return n
@@ -623,7 +695,7 @@ func Apply(
 	f func(r, c int, v float64) float64,
 	out *Dense) *Dense {
 
-	out = use_dense(out, m.rows, m.cols, ErrOutShape)
+	out = use_dense(out, m.rows, m.cols, errOutShape)
 	for row := 0; row < m.rows; row++ {
 		in_row := m.RowView(row)
 		out_row := out.RowView(row)
@@ -647,7 +719,7 @@ func (m *Dense) Apply(f func(int, int, float64) float64) *Dense {
 // otherwise out must have the correct shape.
 // If m is square, out can be m itself.
 func T(m, out *Dense) *Dense {
-	out = use_dense(out, m.cols, m.rows, ErrOutShape)
+	out = use_dense(out, m.cols, m.rows, errOutShape)
 	if m.rows == m.cols {
 		for row := 0; row < m.rows; row++ {
 			for col := 0; col < row; col++ {
@@ -669,67 +741,9 @@ func T(m, out *Dense) *Dense {
 // and also returns the transposed matrix.
 func (m *Dense) T() *Dense {
 	if m.rows != m.cols {
-		panic(ErrSquare)
+		panic(errSquare)
 	}
 	T(m, m)
-	return m
-}
-
-func Upper(a, out *Dense) *Dense {
-	if a.rows != a.cols {
-		panic(ErrSquare)
-	}
-	if out == nil {
-		out = NewDense(a.rows, a.cols)
-	} else {
-		if out.rows != a.rows || out.cols != a.cols {
-			panic(ErrOutShape)
-		}
-		out.ZeroLower()
-	}
-
-	for row := 0; row < a.rows; row++ {
-		copy(out.RowView(row)[row:], a.RowView(row)[row:])
-	}
-	return out
-}
-
-func (m *Dense) ZeroLower() *Dense {
-	if m.rows != m.cols {
-		panic(ErrSquare)
-	}
-	for i := 1; i < m.rows; i++ {
-		zero(m.RowView(i)[:i])
-	}
-	return m
-}
-
-func Lower(a, out *Dense) *Dense {
-	if a.rows != a.cols {
-		panic(ErrSquare)
-	}
-	if out == nil {
-		out = NewDense(a.rows, a.cols)
-	} else {
-		if out.rows != a.rows || out.cols != a.cols {
-			panic(ErrOutShape)
-		}
-		out.ZeroUpper()
-	}
-
-	for row := 0; row < a.rows; row++ {
-		copy(out.RowView(row)[:row+1], a.RowView(row)[:row+1])
-	}
-	return out
-}
-
-func (m *Dense) ZeroUpper() *Dense {
-	if m.rows != m.cols {
-		panic(ErrSquare)
-	}
-	for i := 0; i < m.rows-1; i++ {
-		zero(m.RowView(i)[(i + 1):])
-	}
 	return m
 }
 
@@ -766,12 +780,8 @@ func (m *Dense) EqualsApprox(b *Dense, epsilon float64) bool {
 }
 
 // Det returns the determinant of the matrix a.
-func Det(a *Dense) float64 {
-	return LU(Clone(a)).Det()
-}
-
 func (m *Dense) Det() float64 {
-	return Det(m)
+	return LU(Clone(m)).Det()
 }
 
 // Inv returns the inverse or pseudoinverse of the matrix a.
@@ -783,7 +793,7 @@ func Inv(a *Dense, out *Dense) *Dense {
 // TODO: check LU and QR to see if output allocation can be avoided
 // when output receiving matrix is provided.
 func Solve(a, b, out *Dense) *Dense {
-	out = use_dense(out, a.cols, b.cols, ErrOutShape)
+	out = use_dense(out, a.cols, b.cols, errOutShape)
 	if a.rows == a.cols {
 		Copy(out, LU(Clone(a)).Solve(Clone(b)))
 	} else {

@@ -55,14 +55,12 @@ func flatten2dense(f [][]float64) *Dense {
 }
 
 func make_dense(r, c int, data []float64) *Dense {
-	x := &Dense{}
-	x.LoadData(data, r, c)
-	return x
+	return (&Dense{}).LoadData(data, r, c)
 }
 
 func randDense(size int, rho float64, rnd func() float64) (*Dense, error) {
 	if size == 0 {
-		return nil, ErrZeroLength
+		return nil, errZeroLength
 	}
 	d := &Dense{
 		rows: size, cols: size, stride: size,

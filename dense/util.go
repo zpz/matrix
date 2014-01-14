@@ -14,7 +14,7 @@ func add(x, y, out []float64) []float64 {
 	if len(x) != len(y) {
 		panic("input length mismatch")
 	}
-	out = use_slice(out, len(x), ErrOutLength)
+	out = use_slice(out, len(x), errOutLength)
 	for i, v := range x {
 		out[i] = v + y[i]
 	}
@@ -31,7 +31,7 @@ func add_scaled(x, y []float64, s float64, out []float64) []float64 {
 	if len(x) != len(y) {
 		panic("input length mismatch")
 	}
-	out = use_slice(out, len(x), ErrOutLength)
+	out = use_slice(out, len(x), errOutLength)
 	for i, v := range x {
 		out[i] = v + y[i]*s
 	}
@@ -48,7 +48,7 @@ func subtract(x, y, out []float64) []float64 {
 	if len(x) != len(y) {
 		panic("input length mismatch")
 	}
-	out = use_slice(out, len(x), ErrOutLength)
+	out = use_slice(out, len(x), errOutLength)
 	for i, v := range x {
 		out[i] = v - y[i]
 	}
@@ -65,7 +65,7 @@ func multiply(x, y, out []float64) []float64 {
 	if len(x) != len(y) {
 		panic("input length mismatch")
 	}
-	out = use_slice(out, len(x), ErrOutLength)
+	out = use_slice(out, len(x), errOutLength)
 	for i, v := range x {
 		out[i] = v * y[i]
 	}
@@ -74,7 +74,7 @@ func multiply(x, y, out []float64) []float64 {
 
 func dot(x, y []float64) float64 {
 	if len(x) != len(y) {
-		panic(ErrLength)
+		panic(errLength)
 	}
 	d := 0.0
 	for i, v := range x {
@@ -111,7 +111,7 @@ func zero(x []float64) {
 // out can be x itself, in which case elements
 // of x are incremented by the amount v.
 func shift(x []float64, v float64, out []float64) []float64 {
-	out = use_slice(out, len(x), ErrOutLength)
+	out = use_slice(out, len(x), errOutLength)
 	for i, val := range x {
 		out[i] = val + v
 	}
@@ -125,7 +125,7 @@ func shift(x []float64, v float64, out []float64) []float64 {
 // out can be x itself, in which case elements
 // of x are scaled by the amount v.
 func scale(x []float64, v float64, out []float64) []float64 {
-	out = use_slice(out, len(x), ErrOutLength)
+	out = use_slice(out, len(x), errOutLength)
 	for i, val := range x {
 		out[i] = val * v
 	}
@@ -243,13 +243,13 @@ func eye(k int) *Dense {
 // A Panicker is a function that may panic.
 type Panicker func()
 
-// Maybe will recover a panic with a type matrix.Error from fn, and return this error.
+// Maybe will recover a panic with a type dense.err from fn, and return this error.
 // Any other error is re-panicked.
-func Maybe(fn Panicker) (err error) {
+func Maybe(fn Panicker) (e error) {
 	defer func() {
 		if r := recover(); r != nil {
 			var ok bool
-			if err, ok = r.(Error); ok {
+			if e, ok = r.(err); ok {
 				return
 			}
 			panic(r)
@@ -262,13 +262,13 @@ func Maybe(fn Panicker) (err error) {
 // A FloatPanicker is a function that returns a float64 and may panic.
 type FloatPanicker func() float64
 
-// MaybeFloat will recover a panic with a type matrix.Error from fn, and return this error.
+// MaybeFloat will recover a panic with a type dense.err from fn, and return this error.
 // Any other error is re-panicked.
-func MaybeFloat(fn FloatPanicker) (f float64, err error) {
+func MaybeFloat(fn FloatPanicker) (f float64, e error) {
 	defer func() {
 		if r := recover(); r != nil {
-			if e, ok := r.(Error); ok {
-				err = e
+			if er, ok := r.(err); ok {
+				e = er
 				return
 			}
 			panic(r)
@@ -279,32 +279,33 @@ func MaybeFloat(fn FloatPanicker) (f float64, err error) {
 
 // Must can be used to wrap a function returning an error.
 // If the returned error is not nil, Must will panic.
-func Must(err error) {
-	if err != nil {
-		panic(err)
+func Must(e error) {
+	if e != nil {
+		panic(e)
 	}
 }
 
-// Type Error represents matrix package errors. These errors can be recovered by Maybe wrappers.
-type Error string
+// Type err represents dense package errors.
+// These errors can be recovered by Maybe wrappers.
+type err string
 
-func (err Error) Error() string { return string(err) }
+func (e err) Error() string { return "dense: " + string(e) }
 
 const (
-	ErrIndexOutOfRange = Error("mat64: index out of range")
-	ErrZeroLength      = Error("mat64: zero length in matrix definition")
-	ErrRowLength       = Error("mat64: row length mismatch")
-	ErrColLength       = Error("mat64: col length mismatch")
-	ErrSquare          = Error("mat64: expect square matrix")
-	ErrNormOrder       = Error("mat64: invalid norm order for matrix")
-	ErrSingular        = Error("mat64: matrix is singular")
-	ErrLength          = Error("mat64: length mismatch")
-	ErrShape           = Error("mat64: dimension mismatch")
-	ErrIllegalStride   = Error("mat64: illegal stride")
-	ErrPivot           = Error("mat64: malformed pivot list")
-	ErrIllegalOrder    = Error("mat64: illegal order")
-	ErrNoEngine        = Error("mat64: no blas engine registered: call Register()")
-	ErrInLength        = Error("mat64: input data has wrong length")
-	ErrOutLength       = Error("mat64: output receiving slice has wrong length")
-	ErrOutShape        = Error("mat64: output receiving matrix has wrong shape")
+	errIndexOutOfRange = err("index out of range")
+	errZeroLength      = err("zero length in matrix definition")
+	errRowLength       = err("row length mismatch")
+	errColLength       = err("col length mismatch")
+	errSquare          = err("expect square matrix")
+	errNormOrder       = err("invalid norm order for matrix")
+	errSingular        = err("matrix is singular")
+	errLength          = err("length mismatch")
+	errShape           = err("dimension mismatch")
+	errIllegalStride   = err("illegal stride")
+	errPivot           = err("malformed pivot list")
+	errIllegalOrder    = err("illegal order")
+	errNoEngine        = err("no blas engine registered: call Register()")
+	errInLength        = err("input data has wrong length")
+	errOutLength       = err("output receiving slice has wrong length")
+	errOutShape        = err("output receiving matrix has wrong shape")
 )
