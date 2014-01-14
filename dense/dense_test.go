@@ -255,15 +255,15 @@ func (s *S) TestAdd(c *check.C) {
 		r := flatten2dense(test.r)
 
 		temp := Add(a, b, nil)
-		c.Check(temp.Equals(r), check.Equals, true, check.Commentf("Test %d: %v add %v expect %v got %v",
+		c.Check(Equal(temp, r), check.Equals, true, check.Commentf("Test %d: %v add %v expect %v got %v",
 			i, test.a, test.b, test.r, unflatten(temp.rows, temp.cols, temp.data)))
 
 		Add(a, b, temp)
-		c.Check(temp.Equals(r), check.Equals, true, check.Commentf("Test %d: %v add %v expect %v got %v",
+		c.Check(Equal(temp, r), check.Equals, true, check.Commentf("Test %d: %v add %v expect %v got %v",
 			i, test.a, test.b, test.r, unflatten(temp.rows, temp.cols, temp.data)))
 
 		a.Add(b)
-		c.Check(a.Equals(r), check.Equals, true, check.Commentf("Test %d: %v sub %v expect %v got %v",
+		c.Check(Equal(a, r), check.Equals, true, check.Commentf("Test %d: %v sub %v expect %v got %v",
 			i, test.a, test.b, test.r, unflatten(a.rows, a.cols, a.data)))
 	}
 }
@@ -303,15 +303,15 @@ func (s *S) TestSub(c *check.C) {
 		r := flatten2dense(test.r)
 
 		temp := Subtract(a, b, nil)
-		c.Check(temp.Equals(r), check.Equals, true, check.Commentf("Test %d: %v add %v expect %v got %v",
+		c.Check(Equal(temp, r), check.Equals, true, check.Commentf("Test %d: %v add %v expect %v got %v",
 			i, test.a, test.b, test.r, unflatten(temp.rows, temp.cols, temp.data)))
 
 		Subtract(a, b, temp)
-		c.Check(temp.Equals(r), check.Equals, true, check.Commentf("Test %d: %v add %v expect %v got %v",
+		c.Check(Equal(temp, r), check.Equals, true, check.Commentf("Test %d: %v add %v expect %v got %v",
 			i, test.a, test.b, test.r, unflatten(temp.rows, temp.cols, temp.data)))
 
 		a.Subtract(b)
-		c.Check(a.Equals(r), check.Equals, true, check.Commentf("Test %d: %v sub %v expect %v got %v",
+		c.Check(Equal(a, r), check.Equals, true, check.Commentf("Test %d: %v sub %v expect %v got %v",
 			i, test.a, test.b, test.r, unflatten(a.rows, a.cols, a.data)))
 	}
 }
@@ -351,15 +351,15 @@ func (s *S) TestElemult(c *check.C) {
 		r := flatten2dense(test.r)
 
 		temp := Elemult(a, b, nil)
-		c.Check(temp.Equals(r), check.Equals, true, check.Commentf("Test %d: %v add %v expect %v got %v",
+		c.Check(Equal(temp, r), check.Equals, true, check.Commentf("Test %d: %v add %v expect %v got %v",
 			i, test.a, test.b, test.r, unflatten(temp.rows, temp.cols, temp.data)))
 
 		Elemult(a, b, temp)
-		c.Check(temp.Equals(r), check.Equals, true, check.Commentf("Test %d: %v add %v expect %v got %v",
+		c.Check(Equal(temp, r), check.Equals, true, check.Commentf("Test %d: %v add %v expect %v got %v",
 			i, test.a, test.b, test.r, unflatten(temp.rows, temp.cols, temp.data)))
 
 		a.Elemult(b)
-		c.Check(a.Equals(r), check.Equals, true, check.Commentf("Test %d: %v sub %v expect %v got %v",
+		c.Check(Equal(a, r), check.Equals, true, check.Commentf("Test %d: %v sub %v expect %v got %v",
 			i, test.a, test.b, test.r, unflatten(a.rows, a.cols, a.data)))
 	}
 }
@@ -404,11 +404,11 @@ func (s *S) TestMult(c *check.C) {
 		r := flatten2dense(test.r)
 
 		temp := Mult(a, b, nil)
-		c.Check(temp.Equals(r), check.Equals, true, check.Commentf("Test %d: %v add %v expect %v got %v",
+		c.Check(Equal(temp, r), check.Equals, true, check.Commentf("Test %d: %v add %v expect %v got %v",
 			i, test.a, test.b, test.r, unflatten(temp.rows, temp.cols, temp.data)))
 
 		Mult(a, b, temp)
-		c.Check(temp.Equals(r), check.Equals, true, check.Commentf("Test %d: %v sub %v expect %v got %v",
+		c.Check(Equal(temp, r), check.Equals, true, check.Commentf("Test %d: %v sub %v expect %v got %v",
 			i, test.a, test.b, test.r, unflatten(a.rows, a.cols, a.data)))
 	}
 }
@@ -506,16 +506,16 @@ func (s *S) TestTranspose(c *check.C) {
 		t := flatten2dense(test.t)
 
 		r := T(a, nil)
-		c.Check(r.Equals(t), check.Equals, true, check.Commentf("Test %d: %v transpose = %v", i, test.a, test.t))
+		c.Check(Equal(r, t), check.Equals, true, check.Commentf("Test %d: %v transpose = %v", i, test.a, test.t))
 
 		rr := T(r, nil)
-		c.Check(rr.Equals(a), check.Equals, true, check.Commentf("Test %d: %v transpose = I", i, test.a, test.t))
+		c.Check(Equal(rr, a), check.Equals, true, check.Commentf("Test %d: %v transpose = I", i, test.a, test.t))
 
 		r = T(a, nil)
-		c.Check(r.Equals(t), check.Equals, true, check.Commentf("Test %d: %v transpose = %v", i, test.a, test.t))
+		c.Check(Equal(r, t), check.Equals, true, check.Commentf("Test %d: %v transpose = %v", i, test.a, test.t))
 
 		rr = T(r, nil)
-		c.Check(rr.Equals(a), check.Equals, true, check.Commentf("Test %d: %v transpose = I", i, test.a, test.t))
+		c.Check(Equal(rr, a), check.Equals, true, check.Commentf("Test %d: %v transpose = I", i, test.a, test.t))
 	}
 }
 
@@ -628,10 +628,10 @@ func (s *S) TestApply(c *check.C) {
 		t := flatten2dense(test.t)
 
 		r := Apply(a, test.fn, nil)
-		c.Check(r.Equals(t), check.Equals, true, check.Commentf("Test %d: obtained %v expect: %v", i, r.data, t.data))
+		c.Check(Equal(r, t), check.Equals, true, check.Commentf("Test %d: obtained %v expect: %v", i, r.data, t.data))
 
 		a.Apply(test.fn)
-		c.Check(a.Equals(t), check.Equals, true, check.Commentf("Test %d: obtained %v expect: %v", i, a.data, t.data))
+		c.Check(Equal(a, t), check.Equals, true, check.Commentf("Test %d: obtained %v expect: %v", i, a.data, t.data))
 	}
 }
 
@@ -787,7 +787,7 @@ func (s *S) TestSolve(c *check.C) {
 		}
 
 		trueX := flatten2dense(test.x)
-		c.Check(x.EqualsApprox(trueX, 1e-13), check.Equals, true, check.Commentf("Test %v solution mismatch: Found %v, expected %v ", test.name, x, trueX))
+		c.Check(EqualApprox(x, trueX, 1e-13), check.Equals, true, check.Commentf("Test %v solution mismatch: Found %v, expected %v ", test.name, x, trueX))
 	}
 }
 

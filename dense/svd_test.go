@@ -115,13 +115,13 @@ func (s *S) TestSVD(c *check.C) {
 		s := svd.S()
 
 		if svd.U != nil {
-			c.Check(svd.U.Equals(t.u), check.Equals, true)
+			c.Check(Equal(svd.U, t.u), check.Equals, true)
 		} else {
 			c.Check(t.wantu, check.Equals, false)
 			c.Check(t.u, check.IsNil)
 		}
 		if svd.V != nil {
-			c.Check(svd.V.Equals(t.v), check.Equals, true)
+			c.Check(Equal(svd.V, t.v), check.Equals, true)
 		} else {
 			c.Check(t.wantv, check.Equals, false)
 			c.Check(t.v, check.IsNil)
@@ -133,7 +133,7 @@ func (s *S) TestSVD(c *check.C) {
 			vt := T(svd.V, nil)
 			svd.U = Mult(svd.U, s, nil)
 			svd.U = Mult(svd.U, vt, nil)
-			c.Check(svd.U.EqualsApprox(t.a, 1e-12), check.Equals, true)
+			c.Check(EqualApprox(svd.U, t.a, 1e-12), check.Equals, true)
 		}
 	}
 }

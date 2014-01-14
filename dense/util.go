@@ -160,6 +160,30 @@ func sum(x []float64) float64 {
 	return v
 }
 
+func equal(x, y []float64) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for i, xx := range x {
+		if xx != y[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func equal_approx(x, y []float64, eps float64) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for i, xx := range x {
+		if math.Abs(xx-y[i]) > eps {
+			return false
+		}
+	}
+	return true
+}
+
 // Norm returns the L norm of the slice S, defined as
 // (sum_{i=1}^N s[i]^N)^{1/N}
 // Special cases:

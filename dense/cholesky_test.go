@@ -29,11 +29,11 @@ func (s *S) TestCholesky(c *check.C) {
 		lt := T(cf.L, nil)
 
 		lc := Mult(cf.L, lt, nil)
-		c.Check(lc.EqualsApprox(t.a, 1e-12), check.Equals, true)
+		c.Check(EqualApprox(lc, t.a, 1e-12), check.Equals, true)
 
 		x := cf.Solve(eye(3))
 
 		t.a = Mult(t.a, x, nil)
-		c.Check(t.a.EqualsApprox(eye(3), 1e-12), check.Equals, true)
+		c.Check(EqualApprox(t.a, eye(3), 1e-12), check.Equals, true)
 	}
 }

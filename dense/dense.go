@@ -25,8 +25,9 @@ type Dense struct {
 	data               []float64
 }
 
-// NewDense creates a Dense of required dimensions
-// and returns the pointer to it.
+// NewDense creates a Dense with r rows and c cols,
+// allocates memory to hold all elements of the matrix,
+// and return the newly-created, all-zero matrix.
 func NewDense(r, c int) *Dense {
 	return &Dense{
 		rows:   r,
@@ -36,6 +37,15 @@ func NewDense(r, c int) *Dense {
 	}
 }
 
+// LoadData uses data as the data of the matrix and sets
+// the dimensions of the matrix to r, c.
+// This method does not allocate new memory;
+// it simply points to the slice data as the elements of the matrix.
+// This method has no restrictions on the receiver m;
+// it simply changes m to such a new (wrapper) matrix.
+// If the slice data is assigned before being passed to this method,
+// then data will become a view into the matrix m---changes
+// to the elements of m will be reflected in data, and vice versa.
 func (m *Dense) LoadData(data []float64, r, c int) *Dense {
 	if len(data) != r*c {
 		panic(errInLength)
@@ -747,33 +757,31 @@ func (m *Dense) T() *Dense {
 	return m
 }
 
-func (m *Dense) Equals(b *Dense) bool {
-	br, bc := b.Dims()
-	if br != m.rows || bc != m.cols {
+func Equal(a, b *Dense) bool {
+	if a.rows != b.rows || a.cols != b.cols {
 		return false
 	}
-
-	for jb, jm := 0, 0; jm < br*m.stride; jb, jm = jb+b.stride, jm+m.stride {
-		for i, v := range m.data[jm : jm+bc] {
-			if v != b.data[i+jb] {
-				return false
-			}
+	if a.Contiguous() && b.Contiguous() {
+		return equal(a.DataView(), b.DataView())
+	}
+	for row := 0; row < a.rows; row++ {
+		if !equal(a.RowView(row), b.RowView(row)) {
+			return false
 		}
 	}
 	return true
 }
 
-func (m *Dense) EqualsApprox(b *Dense, epsilon float64) bool {
-	br, bc := b.Dims()
-	if br != m.rows || bc != m.cols {
+func EqualApprox(a, b *Dense, eps float64) bool {
+	if a.rows != b.rows || a.cols != b.cols {
 		return false
 	}
-
-	for jb, jm := 0, 0; jm < br*m.stride; jb, jm = jb+b.stride, jm+m.stride {
-		for i, v := range m.data[jm : jm+bc] {
-			if math.Abs(v-b.data[i+jb]) > epsilon {
-				return false
-			}
+	if a.Contiguous() && b.Contiguous() {
+		return equal_approx(a.DataView(), b.DataView(), eps)
+	}
+	for row := 0; row < a.rows; row++ {
+		if !equal_approx(a.RowView(row), b.RowView(row), eps) {
+			return false
 		}
 	}
 	return true
