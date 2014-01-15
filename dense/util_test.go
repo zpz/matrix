@@ -81,3 +81,49 @@ func print_dense(x *Dense) {
 		fmt.Println(x.RowView(row))
 	}
 }
+
+
+// A panicker is a function that may panic.
+type panicker func()
+
+// maybe will recover a panic with a type dense.err from fn, and return this error.
+// Any other error is re-panicked.
+func maybe(fn panicker) (e error) {
+	defer func() {
+		if r := recover(); r != nil {
+			var ok bool
+			if e, ok = r.(err); ok {
+				return
+			}
+			panic(r)
+		}
+	}()
+	fn()
+	return
+}
+
+// A floatPanicker is a function that returns a float64 and may panic.
+type floatPanicker func() float64
+
+// maybeFloat will recover a panic with a type dense.err from fn, and return this error.
+// Any other error is re-panicked.
+func maybeFloat(fn floatPanicker) (f float64, e error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if er, ok := r.(err); ok {
+				e = er
+				return
+			}
+			panic(r)
+		}
+	}()
+	return fn(), nil
+}
+
+// must can be used to wrap a function returning an error.
+// If the returned error is not nil, Must will panic.
+func must(e error) {
+	if e != nil {
+		panic(e)
+	}
+}

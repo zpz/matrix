@@ -19,12 +19,12 @@ type S struct{}
 
 var _ = check.Suite(&S{})
 
-func leaksPanic(fn Panicker) (panicked bool) {
+func leaksPanic(fn panicker) (panicked bool) {
 	defer func() {
 		r := recover()
 		panicked = r != nil
 	}()
-	Maybe(fn)
+	maybe(fn)
 	return
 }
 
@@ -42,7 +42,7 @@ func (s *S) SetUpSuite(c *check.C) { blasEngine = cblas.Blas{} }
 
 func (s *S) TestMaybe(c *check.C) {
 	for i, test := range []struct {
-		fn     Panicker
+		fn     panicker
 		panics bool
 	}{
 		{

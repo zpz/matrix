@@ -88,17 +88,13 @@ func fill(_ []float64, v float64, out []float64) []float64 {
 	for i := range out {
 		out[i] = v
 	}
+	// out[0] = v
+	// for i, n := 1, len(out); i < n; {
+	// 	i += copy(out[i:], out[:i])
+	// }
 	return out
 }
 
-/*
-func fill(_ []float64, v float64, out []float64) []float64 {
-	out[0] = v
-	for i, n := 1, len(out); i < n; {
-		i += copy(out[i:], out[:i])
-	}
-}
-*/
 
 func zero(x []float64) {
 	fill(nil, 0.0, x)
@@ -262,51 +258,6 @@ func eye(k int) *Dense {
 	x := NewDense(k, k)
 	x.FillDiag(1.0)
 	return x
-}
-
-// A Panicker is a function that may panic.
-type Panicker func()
-
-// Maybe will recover a panic with a type dense.err from fn, and return this error.
-// Any other error is re-panicked.
-func Maybe(fn Panicker) (e error) {
-	defer func() {
-		if r := recover(); r != nil {
-			var ok bool
-			if e, ok = r.(err); ok {
-				return
-			}
-			panic(r)
-		}
-	}()
-	fn()
-	return
-}
-
-// A FloatPanicker is a function that returns a float64 and may panic.
-type FloatPanicker func() float64
-
-// MaybeFloat will recover a panic with a type dense.err from fn, and return this error.
-// Any other error is re-panicked.
-func MaybeFloat(fn FloatPanicker) (f float64, e error) {
-	defer func() {
-		if r := recover(); r != nil {
-			if er, ok := r.(err); ok {
-				e = er
-				return
-			}
-			panic(r)
-		}
-	}()
-	return fn(), nil
-}
-
-// Must can be used to wrap a function returning an error.
-// If the returned error is not nil, Must will panic.
-func Must(e error) {
-	if e != nil {
-		panic(e)
-	}
 }
 
 // Type err represents dense package errors.
