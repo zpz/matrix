@@ -55,7 +55,7 @@ func flatten2dense(f [][]float64) *Dense {
 }
 
 func make_dense(r, c int, data []float64) *Dense {
-	return (&Dense{}).LoadData(data, r, c)
+	return DenseView(data, r, c)
 }
 
 func randDense(size int, rho float64, rnd func() float64) (*Dense, error) {

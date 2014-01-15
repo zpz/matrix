@@ -37,24 +37,25 @@ func NewDense(r, c int) *Dense {
 	}
 }
 
-// LoadData uses data as the data of the matrix and sets
-// the dimensions of the matrix to r, c.
-// This method does not allocate new memory;
-// it simply points to the slice data as the elements of the matrix.
-// This method has no restrictions on the receiver m;
-// it simply changes m to such a new (wrapper) matrix.
-// If the slice data is assigned before being passed to this method,
-// then data will become a view into the matrix m---changes
-// to the elements of m will be reflected in data, and vice versa.
-func (m *Dense) LoadData(data []float64, r, c int) *Dense {
+// DenseView creates a view into the slice data as a Dense with
+// r rows and c cols. If the slice data is assigned before being passed
+// to this function, the slice and the created Dense become a view to
+// each other: changes to the elements via one of the two are reflected
+// in the other.
+// If data is created on-the-fly in a call to this function, then the
+// created Dense is no different from one created using NewDense in the
+// sense that the data is internal to the Dense.
+// This function does not allocate new memory.
+func DenseView(data []float64, r, c int) *Dense {
 	if len(data) != r*c {
 		panic(errInLength)
 	}
+    var m Dense
 	m.rows = r
 	m.cols = c
 	m.stride = c
 	m.data = data
-	return m
+	return &m
 }
 
 func (m *Dense) Dims() (r, c int) { return m.rows, m.cols }
