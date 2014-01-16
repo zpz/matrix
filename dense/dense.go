@@ -50,7 +50,7 @@ func DenseView(data []float64, r, c int) *Dense {
 	if len(data) != r*c {
 		panic(errInLength)
 	}
-    var m Dense
+	var m Dense
 	m.rows = r
 	m.cols = c
 	m.stride = c
@@ -632,7 +632,6 @@ const (
 	small   = math.SmallestNonzeroFloat64
 )
 
-// Norm(±2) depends on SVD, and so m must be tall or square.
 func (m *Dense) Norm(ord float64) float64 {
 	var n float64
 	switch {

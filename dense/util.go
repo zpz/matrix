@@ -95,7 +95,6 @@ func fill(_ []float64, v float64, out []float64) []float64 {
 	return out
 }
 
-
 func zero(x []float64) {
 	fill(nil, 0.0, x)
 }

@@ -82,7 +82,6 @@ func print_dense(x *Dense) {
 	}
 }
 
-
 // A panicker is a function that may panic.
 type panicker func()
 

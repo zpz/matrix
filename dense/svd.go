@@ -13,13 +13,15 @@ type SVDFactors struct {
 	U     *Dense
 	Sigma []float64
 	V     *Dense
+	m, n  int
 }
 
-// SVD performs singular value decomposition for an m-by-n matrix a with m >= n,
-// the singular value decomposition is an m-by-n orthogonal matrix u, an n-by-n
-// diagonal matrix s, and an n-by-n orthogonal matrix v so that a = u*s*v'. The
-// matrix a is overwritten during the decomposition and u and v are only returned
-// when wantu and wantv are true respectively.
+// SVD performs singular value decomposition for an m-by-n matrix a.
+// The singular value decomposition is an m-by-n orthogonal matrix u, an n-by-n
+// diagonal matrix s, and an n-by-n orthogonal matrix v so that a = u*s*v'.
+// If a is a wide matrix a copy of its transpose is allocated, otherwise
+// a is overwritten during the decomposition.
+// Matrices u and v are only returned when wantu and wantv are true respectively.
 //
 // The singular values, sigma[k] = s[k][k], are ordered so that
 //
@@ -30,11 +32,13 @@ type SVDFactors struct {
 func SVD(a *Dense, epsilon, small float64, wantu, wantv bool) SVDFactors {
 	m, n := a.Dims()
 
-	// Apparently the failing cases are only a proper subset of (m<n),
-	// so let's not panic. Correct fix to come later?
-	// if m < n {
-	// 	panic(errShape)
-	// }
+	trans := false
+	if m < n {
+		a = T(a, nil)
+		m, n = n, m
+		wantu, wantv = wantv, wantu
+		trans = true
+	}
 
 	sigma := make([]float64, smaller(m+1, n))
 	nu := smaller(m, n)
@@ -425,7 +429,22 @@ func SVD(a *Dense, epsilon, small float64, wantu, wantv bool) SVDFactors {
 		}
 	}
 
-	return SVDFactors{u, sigma, v}
+	if trans {
+		return SVDFactors{
+			U:     v,
+			Sigma: sigma,
+			V:     u,
+			m:     m,
+			n:     n,
+		}
+	}
+	return SVDFactors{
+		U:     u,
+		Sigma: sigma,
+		V:     v,
+		m:     m,
+		n:     n,
+	}
 }
 
 // S returns a newly allocated S matrix from the sigma values held by the
@@ -444,8 +463,7 @@ func (f SVDFactors) Rank(epsilon float64) int {
 	if len(f.Sigma) == 0 {
 		return 0
 	}
-	m, _ := f.U.Dims()
-	tol := float64(larger(m, len(f.Sigma))) * f.Sigma[0] * epsilon
+	tol := float64(larger(f.m, len(f.Sigma))) * f.Sigma[0] * epsilon
 	var r int
 	for _, v := range f.Sigma {
 		if v > tol {
@@ -457,7 +475,5 @@ func (f SVDFactors) Rank(epsilon float64) int {
 
 // Cond returns the 2-norm condition number for the S matrix.
 func (f SVDFactors) Cond() float64 {
-	m, _ := f.U.Dims()
-	n, _ := f.V.Dims()
-	return f.Sigma[0] / f.Sigma[smaller(m, n)-1]
+	return f.Sigma[0] / f.Sigma[smaller(f.m, f.n)-1]
 }
