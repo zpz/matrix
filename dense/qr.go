@@ -169,12 +169,15 @@ func (f QRFactor) Solve(b *Dense) (x *Dense) {
 
 	// Solve R*X = Y;
 	for k := n - 1; k >= 0; k-- {
-		for j := 0; j < bn; j++ {
-			b.Set(k, j, b.Get(k, j)/rDiag[k])
-		}
+        row := b.RowView(k)
+        for j := range row[:bn] {
+            row[j] /= rDiag[k]
+        }
+
 		for i := 0; i < k; i++ {
-			for j := 0; j < bn; j++ {
-				b.Set(i, j, b.Get(i, j)-b.Get(k, j)*qr.Get(i, k))
+            row := b.RowView(i)
+            for j := range row[:bn] {
+                row[j] -= b.Get(k, j) * qr.Get(i, k)
 			}
 		}
 	}
