@@ -74,13 +74,22 @@ func multiply(x, y, out []float64) []float64 {
 
 func dot(x, y []float64) float64 {
 	if len(x) != len(y) {
-		panic(errLength)
+		panic(errLengths)
 	}
 	d := 0.0
 	for i, v := range x {
 		d += v * y[i]
 	}
 	return d
+}
+
+func swap(x, y []float64) {
+	if len(x) != len(y) {
+		panic(errLengths)
+	}
+	for i := range x {
+		x[i], y[i] = y[i], x[i]
+	}
 }
 
 // This signature is made to be consistent with shift and scale.
@@ -273,13 +282,14 @@ const (
 	errSquare          = err("expect square matrix")
 	errNormOrder       = err("invalid norm order for matrix")
 	errSingular        = err("matrix is singular")
-	errLength          = err("length mismatch")
-	errShape           = err("dimension mismatch")
 	errIllegalStride   = err("illegal stride")
 	errPivot           = err("malformed pivot list")
 	errIllegalOrder    = err("illegal order")
 	errNoEngine        = err("no blas engine registered: call Register()")
-	errInLength        = err("input data has wrong length")
-	errOutLength       = err("output receiving slice has wrong length")
-	errOutShape        = err("output receiving matrix has wrong shape")
+	errInLength        = err("input slice has wrong length")
+	errInShape         = err("input matrix has wrong shape")
+	errOutLength       = err("output slice has wrong length")
+	errOutShape        = err("output matrix has wrong shape")
+	errLengths         = err("length mismatch")
+	errShapes          = err("shape mismatch")
 )

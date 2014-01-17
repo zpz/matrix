@@ -219,7 +219,7 @@ func (f LUFactors) Solve(b *Dense) (x *Dense) {
 	m, n := lu.Dims()
 	bm, bn := b.Dims()
 	if bm != m {
-		panic(errShape)
+		panic(errShapes)
 	}
 	if f.IsSingular() {
 		panic("mat64: matrix is singular")
@@ -255,14 +255,10 @@ func (f LUFactors) Solve(b *Dense) (x *Dense) {
 
 func pivotRows(a *Dense, piv []int) *Dense {
 	visit := make([]bool, len(piv))
-	_, n := a.Dims()
-	fromRow := make([]float64, n)
 	for to, from := range piv {
 		for to != from && !visit[from] {
 			visit[from], visit[to] = true, true
-			a.GetRow(from, fromRow)
-			copy(a.RowView(from), a.RowView(to))
-			copy(a.RowView(to), fromRow)
+			swap(a.RowView(from), a.RowView(to))
 			to, from = from, piv[from]
 		}
 	}

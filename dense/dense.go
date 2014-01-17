@@ -285,7 +285,7 @@ func (m *Dense) FillDiag(v float64) *Dense {
 // To create a new matrix and copy into it, use Clone.
 func Copy(dest *Dense, src *Dense) {
 	if dest.rows != src.rows || dest.cols != src.cols {
-		panic(errShape)
+		panic(errShapes)
 	}
 	if dest.Contiguous() && src.Contiguous() {
 		copy(dest.DataView(), src.DataView())
@@ -434,7 +434,7 @@ func element_wise_binary(a, b, out *Dense,
 	f func(a, b, out []float64) []float64) *Dense {
 
 	if a.rows != b.rows || a.cols != b.cols {
-		panic(errShape)
+		panic(errShapes)
 	}
 	out = use_dense(out, a.rows, a.cols, errOutShape)
 	if a.Contiguous() && b.Contiguous() && out.Contiguous() {
@@ -471,7 +471,7 @@ func (m *Dense) Add(X *Dense) *Dense {
 // the result.
 func AddScaled(a, b *Dense, s float64, out *Dense) *Dense {
 	if a.rows != b.rows || a.cols != b.cols {
-		panic(errShape)
+		panic(errShapes)
 	}
 	out = use_dense(out, a.rows, a.cols, errOutShape)
 	if a.Contiguous() && b.Contiguous() && out.Contiguous() {
@@ -520,7 +520,7 @@ func Mult(a, b, out *Dense) *Dense {
 	br, bc := b.Dims()
 
 	if ac != br {
-		panic(errShape)
+		panic(errShapes)
 	}
 
 	out = use_dense(out, ar, bc, errOutShape)
@@ -543,7 +543,7 @@ func Mult(a, b, out *Dense) *Dense {
 
 func Dot(a, b *Dense) float64 {
 	if a.rows != b.rows || a.cols != b.cols {
-		panic(errShape)
+		panic(errShapes)
 	}
 	if a.Contiguous() && b.Contiguous() {
 		return dot(a.DataView(), b.DataView())
@@ -557,7 +557,7 @@ func Dot(a, b *Dense) float64 {
 
 func Hstack(a, b, out *Dense) *Dense {
 	if a.rows != b.rows {
-		panic(errShape)
+		panic(errShapes)
 	}
 	out = use_dense(out, a.rows, a.cols+b.cols, errOutShape)
 	Copy(out.SubmatrixView(0, 0, a.rows, a.cols), a)
@@ -567,7 +567,7 @@ func Hstack(a, b, out *Dense) *Dense {
 
 func Vstack(a, b, out *Dense) *Dense {
 	if a.cols != b.cols {
-		panic(errShape)
+		panic(errShapes)
 	}
 	out = use_dense(out, a.rows+b.rows, a.cols, errOutShape)
 	Copy(out.SubmatrixView(0, 0, a.rows, a.cols), a)

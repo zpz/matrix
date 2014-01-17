@@ -16,7 +16,8 @@ type QRFactor struct {
 
 // QR computes a QR Decomposition for an m-by-n matrix a with m >= n by Householder
 // reflections, the QR decomposition is an m-by-n orthogonal matrix q and an n-by-n
-// upper triangular matrix r so that a = q.r. QR will panic with errShape if m < n.
+// upper triangular matrix r so that a = q.r. QR will panic with
+// errInShape if m < n.
 //
 // The QR decomposition always exists, even if the matrix does not have full rank,
 // so QR will never fail unless m < n. The primary use of the QR decomposition is
@@ -27,7 +28,7 @@ func QR(a *Dense) QRFactor {
 	// Initialize.
 	m, n := a.Dims()
 	if m < n {
-		panic(errShape)
+		panic(errInShape)
 	}
 
 	qr := a
@@ -146,7 +147,7 @@ func (f QRFactor) Solve(b *Dense) (x *Dense) {
 	m, n := qr.Dims()
 	bm, bn := b.Dims()
 	if bm != m {
-		panic(errShape)
+		panic(errShapes)
 	}
 	if !f.IsFullRank() {
 		panic("mat64: matrix is rank deficient")
