@@ -777,7 +777,7 @@ func (s *S) TestSolve(c *check.C) {
 		var x *Dense
 
 		fn := func() {
-			x = Solve(a, b, nil)
+			x = Solve(a, b)
 		}
 
 		panicked, message := panics(fn)

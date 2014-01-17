@@ -15,7 +15,7 @@ type LUFactors struct {
 	Sign  int
 }
 
-// LUD performs an LU Decomposition for an m-by-n matrix a.
+// LU performs an LU decomposition for an m-by-n matrix a.
 //
 // If m >= n, the LU decomposition is an m-by-n unit lower triangular matrix L,
 // an n-by-n upper triangular matrix U, and a permutation vector piv of length m
@@ -24,13 +24,17 @@ type LUFactors struct {
 // If m < n, then L is m-by-m and U is m-by-n.
 //
 // The LU decompostion with pivoting always exists, even if the matrix is
-// singular, so the LUD will never fail. The primary use of the LU decomposition
+// singular, so LU will never fail. The primary use of the LU decomposition
 // is in the solution of square systems of simultaneous linear equations.  This
 // will fail if IsSingular() returns true.
+//
+// The input matrix a is modified in place and contained in the output.
+// If this is not desired, pass in a clone of the source matrix as a.
+//
+// Use a "left-looking", dot-product, Crout/Doolittle algorithm.
 func LU(a *Dense) LUFactors {
-	// Use a "left-looking", dot-product, Crout/Doolittle algorithm.
-	m, n := a.Dims()
 	lu := a
+	m, n := lu.Dims()
 
 	piv := make([]int, m)
 	for i := range piv {
@@ -44,9 +48,7 @@ func LU(a *Dense) LUFactors {
 	for j := 0; j < n; j++ {
 
 		// Make a copy of the j-th column to localize references.
-		for i := 0; i < m; i++ {
-			luColj[i] = lu.Get(i, j)
-		}
+		lu.GetCol(j, luColj)
 
 		// Apply previous transformations.
 		for i := 0; i < m; i++ {
@@ -54,10 +56,7 @@ func LU(a *Dense) LUFactors {
 
 			// Most of the time is spent in the following dot product.
 			kmax := smaller(i, j)
-			var s float64
-			for k := 0; k < kmax; k++ {
-				s += luRowi[k] * luColj[k]
-			}
+			s := dot(luRowi[:kmax], luColj[:kmax])
 
 			luColj[i] -= s
 			luRowi[j] = luColj[i]
@@ -71,19 +70,15 @@ func LU(a *Dense) LUFactors {
 			}
 		}
 		if p != j {
-			for k := 0; k < n; k++ {
-				t := lu.Get(p, k)
-				lu.Set(p, k, lu.Get(j, k))
-				lu.Set(j, k, t)
-			}
+			swap(lu.RowView(p), lu.RowView(j))
 			piv[p], piv[j] = piv[j], piv[p]
 			sign = -sign
 		}
 
 		// Compute multipliers.
-		if j < m && lu.Get(j, j) != 0 {
+		if v := lu.Get(j, j); j < m && v != 0 {
 			for i := j + 1; i < m; i++ {
-				lu.Set(i, j, lu.Get(i, j)/lu.Get(j, j))
+				lu.Set(i, j, lu.Get(i, j)/v)
 			}
 		}
 	}
@@ -105,6 +100,9 @@ func LU(a *Dense) LUFactors {
 // singular, so the LUD will never fail. The primary use of the LU decomposition
 // is in the solution of square systems of simultaneous linear equations.  This
 // will fail if IsSingular() returns true.
+//
+// The input matrix a is modified in place and contained in the output.
+// If this is not desired, pass in a clone of the source matrix as a.
 func LUGaussian(a *Dense) LUFactors {
 	// Initialize.
 	m, n := a.Dims()
@@ -128,22 +126,19 @@ func LUGaussian(a *Dense) LUFactors {
 
 		// Exchange if necessary.
 		if p != k {
-			for j := 0; j < n; j++ {
-				t := lu.Get(p, j)
-				lu.Set(p, j, lu.Get(k, j))
-				lu.Set(k, j, t)
-			}
+			swap(lu.RowView(p), lu.RowView(k))
 			piv[p], piv[k] = piv[k], piv[p]
 			sign = -sign
 		}
 
 		// Compute multipliers and eliminate k-th column.
 		if lu.Get(k, k) != 0 {
+			rowk := lu.RowView(k)
 			for i := k + 1; i < m; i++ {
-				lu.Set(i, k, lu.Get(i, k)/lu.Get(k, k))
-				for j := k + 1; j < n; j++ {
-					lu.Set(i, j, lu.Get(i, j)-lu.Get(i, k)*lu.Get(k, j))
-				}
+				rowi := lu.RowView(i)
+				vik := rowi[k] / rowk[k]
+				rowi[k] = vik
+				add_scaled(rowi[k+1:], rowk[k+1:], -vik, rowi[k+1:])
 			}
 		}
 	}
@@ -169,15 +164,18 @@ func (f LUFactors) L() *Dense {
 	lu := f.LU
 	m, n := lu.Dims()
 	l := NewDense(m, n)
-	for i := 0; i < m; i++ {
-		for j := 0; j < n; j++ {
-			if i > j {
-				l.Set(i, j, lu.Get(i, j))
-			} else if i == j {
-				l.Set(i, j, 1)
-			}
+	if m == n {
+		CopyLower(l, lu)
+		l.FillDiag(1)
+	} else {
+		k := smaller(m, n)
+		CopyLower(l.SubmatrixView(0, 0, k, k), lu.SubmatrixView(0, 0, k, k))
+		l.SubmatrixView(0, 0, k, k).FillDiag(1)
+		if m > n {
+			Copy(l.SubmatrixView(n, 0, m-n, n), lu.SubmatrixView(n, 0, m-n, n))
 		}
 	}
+
 	return l
 }
 
@@ -186,11 +184,15 @@ func (f LUFactors) U() *Dense {
 	lu := f.LU
 	m, n := lu.Dims()
 	u := NewDense(m, n)
-	for i := 0; i < n; i++ {
-		for j := 0; j < n; j++ {
-			if i <= j {
-				u.Set(i, j, lu.Get(i, j))
-			}
+	if m == n {
+		CopyUpper(u, lu)
+		CopyDiag(u, lu)
+	} else {
+		k := smaller(m, n)
+		CopyUpper(u.SubmatrixView(0, 0, k, k), lu.SubmatrixView(0, 0, k, k))
+		CopyDiag(u.SubmatrixView(0, 0, k, k), lu.SubmatrixView(0, 0, k, k))
+		if n > m {
+			Copy(u.SubmatrixView(0, m, m, n-m), lu.SubmatrixView(0, m, m, n-m))
 		}
 	}
 	return u
@@ -204,53 +206,51 @@ func (f LUFactors) Det() float64 {
 	if m != n {
 		panic(errSquare)
 	}
+
+	// Product of diagonal elements.
 	d := float64(sign)
-	for j := 0; j < n; j++ {
-		d *= lu.Get(j, j)
+	for j, k := 0, 0; j < n; j++ {
+		d *= lu.data[k]
+		k += lu.stride + 1
 	}
 	return d
 }
 
 // Solve computes a solution of a.x = b where b has as many rows as a. A matrix x
 // is returned that minimizes the two norm of L*U*X = B(piv,:). QRSolve will panic
-// if a is singular. The matrix b is overwritten during the call.
-func (f LUFactors) Solve(b *Dense) (x *Dense) {
-	lu, piv := f.LU, f.Pivot
+// if a is singular. The matrix b is overwritten during the call, and is
+// returned.
+func (f LUFactors) Solve(b *Dense) *Dense {
+	lu := f.LU
 	m, n := lu.Dims()
-	bm, bn := b.Dims()
-	if bm != m {
+	if b.Rows() != m {
 		panic(errShapes)
 	}
 	if f.IsSingular() {
-		panic("mat64: matrix is singular")
+		panic(errSingular)
 	}
 
 	// Copy right hand side with pivoting
-	nx := bn
-	x = pivotRows(b, piv)
+	pivotRows(b, f.Pivot)
 
 	// Solve L*Y = B(piv,:)
 	for k := 0; k < n; k++ {
 		for i := k + 1; i < n; i++ {
-			for j := 0; j < nx; j++ {
-				x.Set(i, j, x.Get(i, j)-x.Get(k, j)*lu.Get(i, k))
-			}
+			add_scaled(b.RowView(i), b.RowView(k),
+				-lu.Get(i, k), b.RowView(i))
 		}
 	}
 
 	// Solve U*X = Y;
 	for k := n - 1; k >= 0; k-- {
-		for j := 0; j < nx; j++ {
-			x.Set(k, j, x.Get(k, j)/lu.Get(k, k))
-		}
+		scale(b.RowView(k), 1./lu.Get(k, k), b.RowView(k))
 		for i := 0; i < k; i++ {
-			for j := 0; j < nx; j++ {
-				x.Set(i, j, x.Get(i, j)-x.Get(k, j)*lu.Get(i, k))
-			}
+			add_scaled(b.RowView(i), b.RowView(k), -lu.Get(i, k),
+				b.RowView(i))
 		}
 	}
 
-	return x
+	return b
 }
 
 func pivotRows(a *Dense, piv []int) *Dense {

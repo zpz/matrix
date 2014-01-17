@@ -120,7 +120,7 @@ func (s *S) TestLUDGaussian(c *check.C) {
 		l = Mult(l, u, nil)
 		c.Check(EqualApprox(l, pivotRows(Clone(t.a), lf.Pivot), 1e-12), check.Equals, true)
 
-		aInv := Inv(t.a, nil)
+		aInv := Inv(Clone(t.a), nil)
 		aInv = Mult(aInv, t.a, nil)
 		c.Check(EqualApprox(aInv, eye(3), 1e-12), check.Equals, true)
 

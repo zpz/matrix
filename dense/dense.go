@@ -793,19 +793,33 @@ func (m *Dense) Det() float64 {
 }
 
 // Inv returns the inverse or pseudoinverse of the matrix a.
+//
+// Within this function, a is modified.
+// If this is not desired, pass in a clone of the source matrix.
 func Inv(a *Dense, out *Dense) *Dense {
-	return Solve(a, eye(a.rows), out)
+	if out == nil {
+		out = eye(a.rows)
+	} else {
+		if out.rows != a.rows || a.cols != a.rows {
+			panic(errOutShape)
+		}
+		out.Fill(0.0)
+		out.FillDiag(1.0)
+	}
+	return Solve(a, out)
 }
 
 // Solve returns a matrix x that satisfies ax = b.
-// TODO: check LU and QR to see if output allocation can be avoided
-// when output receiving matrix is provided.
-func Solve(a, b, out *Dense) *Dense {
-	out = use_dense(out, a.cols, b.cols, errOutShape)
+//
+// Within this function, both a and b are modified;
+// b becomes the returned solution matrix.
+// If these modifications are not desired,
+// pass in clones of the source matrices of a and b.
+func Solve(a, b *Dense) *Dense {
 	if a.rows == a.cols {
-		Copy(out, LU(Clone(a)).Solve(Clone(b)))
+		b = LU(a).Solve(b)
 	} else {
-		Copy(out, QR(Clone(a)).Solve(Clone(b)))
+		b = QR(a).Solve(b)
 	}
-	return out
+	return b
 }
