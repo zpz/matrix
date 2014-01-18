@@ -162,17 +162,8 @@ func (f LUFactors) IsSingular() bool {
 func (f LUFactors) L() *Dense {
 	m, n := f.lu.Dims()
 	l := NewDense(m, n)
-	if m == n {
-		CopyLower(l, f.lu)
-		l.FillDiag(1)
-	} else {
-		k := smaller(m, n)
-		CopyLower(l.SubmatrixView(0, 0, k, k), f.lu.SubmatrixView(0, 0, k, k))
-		l.SubmatrixView(0, 0, k, k).FillDiag(1)
-		if m > n {
-			Copy(l.SubmatrixView(n, 0, m-n, n), f.lu.SubmatrixView(n, 0, m-n, n))
-		}
-	}
+	CopyLower(l, f.lu)
+	l.FillDiag(1)
 
 	return l
 }
@@ -181,17 +172,8 @@ func (f LUFactors) L() *Dense {
 func (f LUFactors) U() *Dense {
 	m, n := f.lu.Dims()
 	u := NewDense(m, n)
-	if m == n {
-		CopyUpper(u, f.lu)
-		CopyDiag(u, f.lu)
-	} else {
-		k := smaller(m, n)
-		CopyUpper(u.SubmatrixView(0, 0, k, k), f.lu.SubmatrixView(0, 0, k, k))
-		CopyDiag(u.SubmatrixView(0, 0, k, k), f.lu.SubmatrixView(0, 0, k, k))
-		if n > m {
-			Copy(u.SubmatrixView(0, m, m, n-m), f.lu.SubmatrixView(0, m, m, n-m))
-		}
-	}
+	CopyUpper(u, f.lu)
+	CopyDiag(u, f.lu)
 	return u
 }
 

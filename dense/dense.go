@@ -241,37 +241,39 @@ func (m *Dense) Fill(v float64) *Dense {
 	return m
 }
 
+// GetDiag copies diagonal elements of m into out.
+// out must have the correct length.
+// m is not required to be square.
 func (m *Dense) GetDiag(out []float64) []float64 {
-	if m.rows != m.cols {
-		panic(errSquare)
-	}
-	out = use_slice(out, m.rows, errOutLength)
-	for i, j := 0, 0; i < m.rows; i += m.stride + 1 {
+	k := smaller(m.rows, m.cols)
+	out = use_slice(out, k, errOutLength)
+	for i, j := 0, 0; i < k; i += m.stride + 1 {
 		out[j] = m.data[i]
 		j++
 	}
 	return out
 }
 
+// SetDiag sets diagonal elements of m to the values in v.
+// The length of v must be exactly right.
+// m is not required to be square.
 func (m *Dense) SetDiag(v []float64) *Dense {
-	if m.rows != m.cols {
-		panic(errSquare)
-	}
-	if len(v) != m.rows {
+	k := smaller(m.rows, m.cols)
+	if len(v) != k {
 		panic(errInLength)
 	}
-	for i, j := 0, 0; i < m.rows; i += m.stride + 1 {
+	for i, j := 0, 0; i < k; i += m.stride + 1 {
 		m.data[i] = v[j]
 		j++
 	}
 	return m
 }
 
+// FillDiag sets all diagonal elements to value v.
+// The matrix m is not required to be square.
 func (m *Dense) FillDiag(v float64) *Dense {
-	if m.rows != m.cols {
-		panic(errSquare)
-	}
-	for row, k := 0, 0; row < m.rows; row++ {
+	n := smaller(m.rows, m.cols)
+	for row, k := 0, 0; row < n; row++ {
 		m.data[k] = v
 		k += m.stride + 1
 	}
@@ -308,82 +310,77 @@ func Clone(src *Dense) *Dense {
 	return out
 }
 
-// CopyDiag copies the diagonal elements of the square matrix src
+// CopyDiag copies the diagonal elements of the matrix src
 // to the corresponding locations in dest.
-// dest must have the correct shape;
-// its off-diagonal elements are not changed.
+// src and dest must have the same shape;
+// howerver, they are not required to be square.
+// Off-diagonal elements are not touched.
 func CopyDiag(dest, src *Dense) {
-	if src.rows != src.cols {
-		panic(errSquare)
-	}
 	if dest.rows != src.rows || dest.cols != src.cols {
-		panic(errOutShape)
+		panic(errShapes)
 	}
-	for row, kd, ks := 0, 0, 0; row < src.rows; row++ {
+	for row, kd, ks, k := 0, 0, 0, smaller(src.rows, src.cols); row < k; row++ {
 		dest.data[kd] = src.data[ks]
 		kd += dest.stride + 1
 		ks += src.stride + 1
 	}
 }
 
-// CopyUpper copies the upper triangular (i.e. above diagonal)
-// elements of the square matrix src into the corresponding
-// locations in dest.
-// dest must have the correct shape; its diagonal and lower diagonal
-// elements are not changed.
+// CopyUpper copies above-diagonal elements in src to corresponding
+// locations in dest; on- and below-diagonal elements are not touched.
+// dest and src must have the save shape; they are not required to be
+// square.
 func CopyUpper(dest, src *Dense) {
-	if src.rows != src.cols {
-		panic(errSquare)
-	}
 	if dest.rows != src.rows || dest.cols != src.cols {
-		panic(errOutShape)
+		panic(errShapes)
 	}
-	for row := 0; row < src.rows-1; row++ {
+	for row, k := 0, smaller(src.rows, src.cols); row < k-1; row++ {
 		copy(dest.RowView(row)[row+1:], src.RowView(row)[row+1:])
 	}
+	if src.cols > src.rows {
+		k := src.rows
+		copy(dest.RowView(k - 1)[k:], src.RowView(k - 1)[k:])
+	}
 }
 
-// CopyLower copies the lower triangular (i.e. below diagonal)
-// elements of the square matrix src into the corresponding
-// locations in dest.
-// dest must have the correct shape; its diagonal and upper diagonal
-// elements are not changed.
+// CopyLower copies below-diagonal elements in src to corresponding
+// locations in dest; on- and above-diagonal elements are not touched.
+// dest and src must have the save shape; they are not required to be
+// square.
 func CopyLower(dest, src *Dense) {
-	if src.rows != src.cols {
-		panic(errSquare)
-	}
 	if dest.rows != src.rows || dest.cols != src.cols {
-		panic(errOutShape)
+		panic(errShapes)
 	}
 	for row := 1; row < src.rows; row++ {
-		copy(dest.RowView(row)[:row], src.RowView(row)[:row])
+		k := smaller(row, src.cols)
+		copy(dest.RowView(row)[:k], src.RowView(row)[:k])
 	}
 }
 
-// FillLower sets the lower-triangular (i.e. below diagonal) elements
-// of the square receiver matrix m to the value v,
-// and return the modified m.
-// A typical use of this method is to fill with the value zero.
+// FillLower sets the below-diagonal elements
+// of m to value v, and return the modified m.
+// m is not required to be square.
 func (m *Dense) FillLower(v float64) *Dense {
-	if m.rows != m.cols {
-		panic(errSquare)
-	}
-	for i := 1; i < m.rows; i++ {
-		fill(nil, v, m.RowView(i)[:i])
+	for row := 1; row < m.rows; row++ {
+		if row < m.cols {
+			fill(nil, v, m.RowView(row)[:row])
+		} else {
+			fill(nil, v, m.RowView(row))
+		}
 	}
 	return m
 }
 
-// FillUpper sets the upper-triangular (i.e. above diagonal) elements
-// of the square receiver matrix m to the value v,
-// and return the modified m.
-// A typical use of this method is to fill with the value zero.
+// FillUpper sets the above-diagonal elements
+// (or elements to the right of the diagonal)
+// of m to value v, and return the modified m.
+// m is not required to be square.
 func (m *Dense) FillUpper(v float64) *Dense {
-	if m.rows != m.cols {
-		panic(errSquare)
+	for row, k := 0, smaller(m.rows, m.cols); row < k-1; row++ {
+		fill(nil, v, m.RowView(row)[(row+1):])
 	}
-	for i := 0; i < m.rows-1; i++ {
-		fill(nil, v, m.RowView(i)[(i+1):])
+	if m.cols > m.rows {
+		fill(nil, v, m.RowView(m.rows - 1)[m.rows:])
 	}
 	return m
 }
