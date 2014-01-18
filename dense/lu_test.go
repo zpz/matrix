@@ -45,8 +45,8 @@ func (s *S) TestLUD(c *check.C) {
 	} {
 		lf := LU(Clone(t.a))
 		if t.pivot != nil {
-			c.Check(lf.Pivot, check.DeepEquals, t.pivot)
-			c.Check(lf.Sign, check.Equals, t.sign)
+			c.Check(lf.pivot, check.DeepEquals, t.pivot)
+			c.Check(lf.sign, check.Equals, t.sign)
 		}
 
 		l := lf.L()
@@ -59,7 +59,7 @@ func (s *S) TestLUD(c *check.C) {
 		}
 
 		l = Mult(l, u, nil)
-		c.Check(EqualApprox(l, pivotRows(Clone(t.a), lf.Pivot), 1e-12), check.Equals, true)
+		c.Check(EqualApprox(l, pivotRows(Clone(t.a), lf.pivot), 1e-12), check.Equals, true)
 
 		x := lf.Solve(eye(3))
 		t.a = Mult(t.a, x, nil)
@@ -104,8 +104,8 @@ func (s *S) TestLUDGaussian(c *check.C) {
 	} {
 		lf := LUGaussian(Clone(t.a))
 		if t.pivot != nil {
-			c.Check(lf.Pivot, check.DeepEquals, t.pivot)
-			c.Check(lf.Sign, check.Equals, t.sign)
+			c.Check(lf.pivot, check.DeepEquals, t.pivot)
+			c.Check(lf.sign, check.Equals, t.sign)
 		}
 
 		l := lf.L()
@@ -118,7 +118,7 @@ func (s *S) TestLUDGaussian(c *check.C) {
 		}
 
 		l = Mult(l, u, nil)
-		c.Check(EqualApprox(l, pivotRows(Clone(t.a), lf.Pivot), 1e-12), check.Equals, true)
+		c.Check(EqualApprox(l, pivotRows(Clone(t.a), lf.pivot), 1e-12), check.Equals, true)
 
 		aInv := Inv(Clone(t.a), nil)
 		aInv = Mult(aInv, t.a, nil)

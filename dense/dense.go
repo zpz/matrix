@@ -13,12 +13,10 @@ var blasEngine blas.Float64
 
 func Register(b blas.Float64) { blasEngine = b }
 
-func Registered() blas.Float64 { return blasEngine }
-
 // This package uses row-major storage.
 // Every operation is affected by it.
 // Do not change it.
-const BlasOrder = blas.RowMajor
+const blasOrder = blas.RowMajor
 
 type Dense struct {
 	rows, cols, stride int
@@ -529,7 +527,7 @@ func Mult(a, b, out *Dense) *Dense {
 		panic(errNoEngine)
 	}
 	blasEngine.Dgemm(
-		BlasOrder,
+		blasOrder,
 		blas.NoTrans, blas.NoTrans,
 		ar, bc, ac,
 		1.,

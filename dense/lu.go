@@ -10,9 +10,9 @@ import (
 )
 
 type LUFactors struct {
-	LU    *Dense
-	Pivot []int
-	Sign  int
+	lu    *Dense
+	pivot []int
+	sign  int
 }
 
 // LU performs an LU decomposition for an m-by-n matrix a.
@@ -149,10 +149,9 @@ func LUGaussian(a *Dense) LUFactors {
 // IsSingular returns whether the the upper triangular factor and hence a is
 // singular.
 func (f LUFactors) IsSingular() bool {
-	lu := f.LU
-	_, n := lu.Dims()
+	_, n := f.lu.Dims()
 	for j := 0; j < n; j++ {
-		if lu.Get(j, j) == 0 {
+		if f.lu.Get(j, j) == 0 {
 			return true
 		}
 	}
@@ -161,18 +160,17 @@ func (f LUFactors) IsSingular() bool {
 
 // L returns the lower triangular factor of the LU decomposition.
 func (f LUFactors) L() *Dense {
-	lu := f.LU
-	m, n := lu.Dims()
+	m, n := f.lu.Dims()
 	l := NewDense(m, n)
 	if m == n {
-		CopyLower(l, lu)
+		CopyLower(l, f.lu)
 		l.FillDiag(1)
 	} else {
 		k := smaller(m, n)
-		CopyLower(l.SubmatrixView(0, 0, k, k), lu.SubmatrixView(0, 0, k, k))
+		CopyLower(l.SubmatrixView(0, 0, k, k), f.lu.SubmatrixView(0, 0, k, k))
 		l.SubmatrixView(0, 0, k, k).FillDiag(1)
 		if m > n {
-			Copy(l.SubmatrixView(n, 0, m-n, n), lu.SubmatrixView(n, 0, m-n, n))
+			Copy(l.SubmatrixView(n, 0, m-n, n), f.lu.SubmatrixView(n, 0, m-n, n))
 		}
 	}
 
@@ -181,18 +179,17 @@ func (f LUFactors) L() *Dense {
 
 // U returns the upper triangular factor of the LU decomposition.
 func (f LUFactors) U() *Dense {
-	lu := f.LU
-	m, n := lu.Dims()
+	m, n := f.lu.Dims()
 	u := NewDense(m, n)
 	if m == n {
-		CopyUpper(u, lu)
-		CopyDiag(u, lu)
+		CopyUpper(u, f.lu)
+		CopyDiag(u, f.lu)
 	} else {
 		k := smaller(m, n)
-		CopyUpper(u.SubmatrixView(0, 0, k, k), lu.SubmatrixView(0, 0, k, k))
-		CopyDiag(u.SubmatrixView(0, 0, k, k), lu.SubmatrixView(0, 0, k, k))
+		CopyUpper(u.SubmatrixView(0, 0, k, k), f.lu.SubmatrixView(0, 0, k, k))
+		CopyDiag(u.SubmatrixView(0, 0, k, k), f.lu.SubmatrixView(0, 0, k, k))
 		if n > m {
-			Copy(u.SubmatrixView(0, m, m, n-m), lu.SubmatrixView(0, m, m, n-m))
+			Copy(u.SubmatrixView(0, m, m, n-m), f.lu.SubmatrixView(0, m, m, n-m))
 		}
 	}
 	return u
@@ -201,17 +198,16 @@ func (f LUFactors) U() *Dense {
 // Det returns the determinant of matrix a decomposed into lu. The matrix
 // a must have been square.
 func (f LUFactors) Det() float64 {
-	lu, sign := f.LU, f.Sign
-	m, n := lu.Dims()
+	m, n := f.lu.Dims()
 	if m != n {
 		panic(errSquare)
 	}
 
 	// Product of diagonal elements.
-	d := float64(sign)
+	d := float64(f.sign)
 	for j, k := 0, 0; j < n; j++ {
-		d *= lu.data[k]
-		k += lu.stride + 1
+		d *= f.lu.data[k]
+		k += f.lu.stride + 1
 	}
 	return d
 }
@@ -221,8 +217,7 @@ func (f LUFactors) Det() float64 {
 // if a is singular. The matrix b is overwritten during the call, and is
 // returned.
 func (f LUFactors) Solve(b *Dense) *Dense {
-	lu := f.LU
-	m, n := lu.Dims()
+	m, n := f.lu.Dims()
 	if b.Rows() != m {
 		panic(errShapes)
 	}
@@ -231,21 +226,21 @@ func (f LUFactors) Solve(b *Dense) *Dense {
 	}
 
 	// Copy right hand side with pivoting
-	pivotRows(b, f.Pivot)
+	pivotRows(b, f.pivot)
 
 	// Solve L*Y = B(piv,:)
 	for k := 0; k < n; k++ {
 		for i := k + 1; i < n; i++ {
 			add_scaled(b.RowView(i), b.RowView(k),
-				-lu.Get(i, k), b.RowView(i))
+				-f.lu.Get(i, k), b.RowView(i))
 		}
 	}
 
 	// Solve U*X = Y;
 	for k := n - 1; k >= 0; k-- {
-		scale(b.RowView(k), 1./lu.Get(k, k), b.RowView(k))
+		scale(b.RowView(k), 1./f.lu.Get(k, k), b.RowView(k))
 		for i := 0; i < k; i++ {
-			add_scaled(b.RowView(i), b.RowView(k), -lu.Get(i, k),
+			add_scaled(b.RowView(i), b.RowView(k), -f.lu.Get(i, k),
 				b.RowView(i))
 		}
 	}
