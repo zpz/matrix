@@ -191,8 +191,7 @@ func (m *Dense) DataView() []float64 {
 	if m.Contiguous() {
 		return m.data
 	}
-	return nil
-	// TODO: return nil here or panic?
+    panic("data is not contiguous")
 }
 
 // GetData copies out all elements of the matrix, row by row, in the
