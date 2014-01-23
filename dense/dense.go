@@ -191,7 +191,7 @@ func (m *Dense) DataView() []float64 {
 	if m.Contiguous() {
 		return m.data
 	}
-    panic("data is not contiguous")
+	panic("data is not contiguous")
 }
 
 // GetData copies out all elements of the matrix, row by row, in the
@@ -756,10 +756,10 @@ func Equal(a, b *Dense) bool {
 		return false
 	}
 	if a.Contiguous() && b.Contiguous() {
-		return equal(a.DataView(), b.DataView())
+		return all_equal(a.DataView(), b.DataView())
 	}
 	for row := 0; row < a.rows; row++ {
-		if !equal(a.RowView(row), b.RowView(row)) {
+		if !all_equal(a.RowView(row), b.RowView(row)) {
 			return false
 		}
 	}
@@ -771,10 +771,10 @@ func EqualApprox(a, b *Dense, eps float64) bool {
 		return false
 	}
 	if a.Contiguous() && b.Contiguous() {
-		return equal_approx(a.DataView(), b.DataView(), eps)
+		return all_approx(a.DataView(), b.DataView(), eps)
 	}
 	for row := 0; row < a.rows; row++ {
-		if !equal_approx(a.RowView(row), b.RowView(row), eps) {
+		if !all_approx(a.RowView(row), b.RowView(row), eps) {
 			return false
 		}
 	}
@@ -803,7 +803,8 @@ func Inv(a *Dense, out *Dense) *Dense {
 	return Solve(a, out)
 }
 
-// Solve returns a matrix x that satisfies ax = b.
+// Solve returns a matrix x that satisfies ax = b,
+// that is, it returns inv(a) b.
 //
 // Within this function, both a and b are modified;
 // b becomes the returned solution matrix.

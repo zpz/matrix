@@ -23,17 +23,22 @@ func (s *S) TestCholesky(c *check.C) {
 			spd: true,
 		},
 	} {
-		cf := Cholesky(t.a)
-		c.Check(cf.SPD, check.Equals, t.spd)
+		cl, ok := Chol(t.a)
+		c.Check(ok, check.Equals, t.spd)
 
-		lt := T(cf.L, nil)
-
-		lc := Mult(cf.L, lt, nil)
+		lc := Mult(cl.L, T(cl.L, nil), nil)
 		c.Check(EqualApprox(lc, t.a, 1e-12), check.Equals, true)
 
-		x := cf.Solve(eye(3))
+		ta := Mult(t.a, cl.Solve(eye(3)), nil)
+		c.Check(EqualApprox(ta, eye(3), 1e-12), check.Equals, true)
 
-		t.a = Mult(t.a, x, nil)
-		c.Check(EqualApprox(t.a, eye(3), 1e-12), check.Equals, true)
+		cr, ok := CholR(t.a)
+		c.Check(ok, check.Equals, t.spd)
+
+		rc := Mult(T(cr.U, nil), cr.U, nil)
+		c.Check(EqualApprox(rc, t.a, 1e-12), check.Equals, true)
+
+		tb := Mult(cr.Solve(eye(3)), t.a, nil)
+		c.Check(EqualApprox(tb, eye(3), 1e-12), check.Equals, true)
 	}
 }

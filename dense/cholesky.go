@@ -9,114 +9,191 @@ import (
 	"math"
 )
 
-type CholeskyFactor struct {
-	L   *Dense
-	SPD bool
+// Cholesky is the left Cholesky factor of a symmetric, positive
+// definite matrix M.
+// The member matrix L is lower triangular such that
+// L * L' equals M.
+type Cholesky struct {
+	L *Dense
 }
 
-// CholeskyL returns the left Cholesky decomposition of the matrix a and whether
-// the matrix is symmetric or positive definite, the returned matrix l is a lower
-// triangular matrix such that a = l.l'.
-func Cholesky(a *Dense) CholeskyFactor {
-	// Initialize.
-	m, n := a.Dims()
-	spd := m == n
-	l := NewDense(n, n)
+// CholeskyR is the right Cholesky factor of a symmetric, positive
+// definite matrix M.
+// The member matrix U is upper triangular such that
+// U' * U equals M.
+type CholeskyR struct {
+	U *Dense
+}
 
-	// Main loop.
-	for j := 0; j < n; j++ {
-		var d float64
-		lRowj := l.RowView(j)
-		for k := 0; k < j; k++ {
-			var s float64
-			lRowk := l.RowView(k)
-			for i := 0; i < k; i++ {
-				s += lRowk[i] * lRowj[i]
-			}
-			s = (a.Get(j, k) - s) / l.Get(k, k)
-			lRowj[k] = s
-			d += s * s
-			spd = spd && a.Get(k, j) == a.Get(j, k)
-		}
-		d = a.Get(j, j) - d
-		spd = spd && d > 0
-		l.Set(j, j, math.Sqrt(math.Max(d, 0)))
-		for k := j + 1; k < n; k++ {
-			l.Set(j, k, 0)
-		}
+// Chol returns the left Cholesky decomposition of the matrix M.
+// If M is not symmetric and positive definite, the operation will
+// return false.
+func Chol(M *Dense) (Cholesky, bool) {
+	n := M.Rows()
+	if M.Cols() != n {
+		return Cholesky{nil}, false
 	}
 
-	return CholeskyFactor{L: l, SPD: spd}
+	// Typically Chol is called when the caller knows that
+	// M is symmetric and PD in concept, e.g. M is a covariance matrix.
+	// Hence symmetry is not checked directly.
+
+	l := NewDense(n, n)
+
+	for i := 0; i < n; i++ {
+		var d float64
+		lRowi := l.RowView(i)
+		for k := 0; k < i; k++ {
+			lRowk := l.RowView(k)
+			s := dot(lRowk[:k], lRowi[:k])
+			s = (M.Get(i, k) - s) / lRowk[k]
+			lRowi[k] = s
+			d += s * s
+		}
+		d = M.Get(i, i) - d
+		if d <= 0 {
+			return Cholesky{nil}, false
+		}
+		lRowi[i] = math.Sqrt(d)
+	}
+
+	return Cholesky{l}, true
 }
 
-// CholeskyR returns the right Cholesky decomposition of the matrix a and whether
-// the matrix is symmetric or positive definite, the returned matrix r is an upper
-// triangular matrix such that a = r'.r.
-func CholeskyR(a *Dense) (r *Dense, spd bool) {
-	// Initialize.
-	m, n := a.Dims()
-	spd = m == n
-	r = NewDense(n, n)
+// Chol returns the right Cholesky decomposition of the matrix M.
+// If M is not symmetric and positive definite, the operation will
+// return false.
+func CholR(M *Dense) (CholeskyR, bool) {
+	n := M.Rows()
+	if M.Cols() != n {
+		return CholeskyR{nil}, false
+	}
 
-	// Main loop.
+	r := NewDense(n, n)
+
 	for j := 0; j < n; j++ {
 		var d float64
 		for k := 0; k < j; k++ {
-			s := a.Get(k, j)
+			s := M.Get(k, j)
 			for i := 0; i < k; i++ {
 				s -= r.Get(i, k) * r.Get(i, j)
 			}
 			s /= r.Get(k, k)
 			r.Set(k, j, s)
 			d += s * s
-			spd = spd && a.Get(k, j) == a.Get(j, k)
 		}
-		d = a.Get(j, j) - d
-		spd = spd && d > 0
+		d = M.Get(j, j) - d
+		if d <= 0 {
+			return CholeskyR{nil}, false
+		}
 		r.Set(j, j, math.Sqrt(math.Max(d, 0)))
 		for k := j + 1; k < n; k++ {
 			r.Set(k, j, 0)
 		}
 	}
 
-	return r, spd
+	return CholeskyR{r}, true
 }
 
-// CholeskySolve returns a matrix x that solves a.x = b where a = l.l'. The matrix b must
-// have the same number of rows as a, and a must be symmetric and positive definite. The
-// matrix b is overwritten by the operation.
-func (f CholeskyFactor) Solve(b *Dense) (x *Dense) {
-	if !f.SPD {
-		panic("mat64: matrix not symmetric positive definite")
+// Solve returns a matrix x that solves a * x = b where a is the matrix
+// that produced ch by Chol(a).
+// The matrix b must have the same number of rows as a.
+// b is overwritten by the operation and returned containing the
+// solution.
+func (ch Cholesky) Solve(b *Dense) (x *Dense) {
+	l := ch.L
+	if l == nil {
+		panic(errInNil)
 	}
-	l := f.L
 
-	_, n := l.Dims()
-	_, bn := b.Dims()
-	if n != bn {
+	n := l.Rows()
+
+	if b.Rows() != n {
 		panic(errShapes)
 	}
 
-	nx := bn
 	x = b
+	nx := x.Cols()
 
 	// Solve L*Y = B;
-	for k := 0; k < n; k++ {
-		for j := 0; j < nx; j++ {
-			for i := 0; i < k; i++ {
-				x.Set(k, j, x.Get(k, j)-x.Get(i, j)*l.Get(k, i))
+	for row := 0; row < n; row++ {
+		lrow := l.RowView(row)
+		for col := 0; col < nx; col++ {
+			ix := col
+			v := 0.0
+			for k := 0; k < row; k++ {
+				v += x.data[ix] * lrow[k]
+				ix += x.stride
 			}
-			x.Set(k, j, x.Get(k, j)/l.Get(k, k))
+
+			// element (row, col) of x.
+			x.data[ix] = (x.data[ix] - v) / lrow[row]
 		}
 	}
 
 	// Solve L'*X = Y;
-	for k := n - 1; k >= 0; k-- {
-		for j := 0; j < nx; j++ {
-			for i := k + 1; i < n; i++ {
-				x.Set(k, j, x.Get(k, j)-x.Get(i, j)*l.Get(i, k))
+	for row := n - 1; row >= 0; row-- {
+		for col := 0; col < nx; col++ {
+			ix := col + x.stride*(n-1)
+			il := row + l.stride*(n-1)
+			v := 0.0
+			for k := n - 1; k > row; k-- {
+				v += x.data[ix] * l.data[il]
+				ix -= x.stride
+				il -= l.stride
 			}
-			x.Set(k, j, x.Get(k, j)/l.Get(k, k))
+
+			// element (row, col) of x.
+			x.data[ix] = (x.data[ix] - v) / l.data[il]
+		}
+	}
+
+	return x
+}
+
+// Solve returns a matrix x that solves x * a = b where a is the matrix
+// that produced ch by CholR(a).
+// The matrix b must have the same number of cols as a.
+// b is overwritten by the operation and returned containing the
+// solution.
+func (ch CholeskyR) Solve(b *Dense) (x *Dense) {
+	u := ch.U
+	if u == nil {
+		panic(errInNil)
+	}
+
+	n := u.Cols()
+
+	if b.Cols() != n {
+		panic(errShapes)
+	}
+
+	x = b
+	nx := x.Rows()
+
+	// x * U' * U = B
+
+	// Solve Y * U = B
+	for col := 0; col < n; col++ {
+		for row := 0; row < nx; row++ {
+			xrow := x.RowView(row)
+			iu := col
+			v := 0.0
+			for k := 0; k < col; k++ {
+				v += xrow[k] * u.data[iu]
+				iu += u.stride
+			}
+			xrow[col] = (xrow[col] - v) / u.data[iu]
+		}
+	}
+
+	// Solve X * U' = Y
+	for col := n - 1; col >= 0; col-- {
+		ucol := u.RowView(col)
+		for row := 0; row < nx; row++ {
+			xrow := x.RowView(row)
+			v := dot(xrow[col+1:], ucol[col+1:])
+			xrow[col] = (xrow[col] - v) / ucol[col]
 		}
 	}
 

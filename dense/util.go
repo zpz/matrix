@@ -164,7 +164,15 @@ func sum(x []float64) float64 {
 	return v
 }
 
-func equal(x, y []float64) bool {
+func equal(x, y float64) bool {
+	return x == y
+}
+
+func approx(x, y, eps float64) bool {
+	return x-y < eps && y-x < eps
+}
+
+func all_equal(x, y []float64) bool {
 	if len(x) != len(y) {
 		return false
 	}
@@ -176,12 +184,12 @@ func equal(x, y []float64) bool {
 	return true
 }
 
-func equal_approx(x, y []float64, eps float64) bool {
+func all_approx(x, y []float64, eps float64) bool {
 	if len(x) != len(y) {
 		return false
 	}
 	for i, xx := range x {
-		if math.Abs(xx-y[i]) > eps {
+		if !approx(xx, y[i], eps) {
 			return false
 		}
 	}
@@ -292,4 +300,5 @@ const (
 	errOutShape        = err("output matrix has wrong shape")
 	errLengths         = err("length mismatch")
 	errShapes          = err("shape mismatch")
+	errInNil           = err("input is nil")
 )
