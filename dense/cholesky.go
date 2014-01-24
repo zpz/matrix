@@ -9,44 +9,43 @@ import (
 	"math"
 )
 
-// Cholesky is the left Cholesky factor of a symmetric, positive
+// CholFactors contains the Cholesky factors of a symmetric, positive
 // definite matrix M.
-// The member matrix L is lower triangular such that
-// L * L' equals M.
-type Cholesky struct {
-	L *Dense
+// The member matrix LU is symmetric; let its lower- and upper-triangles
+// (including diagonal) be L and U, then L * U equals M.
+type CholFactors struct {
+	LU *Dense
 }
 
-// CholeskyR is the right Cholesky factor of a symmetric, positive
-// definite matrix M.
-// The member matrix U is upper triangular such that
-// U' * U equals M.
-type CholeskyR struct {
-	U *Dense
-}
-
-// Chol returns the left Cholesky decomposition of the matrix M.
-func Chol(M *Dense) (*Cholesky, bool) {
-	ch := &Cholesky{}
+// Chol returns the Cholesky decomposition of the matrix M.
+func Chol(M *Dense) (*CholFactors, bool) {
+	ch := &CholFactors{nil}
+	n := M.Rows()
+	if M.Cols() != n {
+		return ch, false
+	}
 	b := ch.Chol(M)
 	return ch, b
 }
 
-// Chol conducts left Cholesky decomposition for the matrix M.
+// Chol conducts Cholesky decomposition for the matrix M.
 // The receiver ch is updated. Success flag is returned.
-func (ch *Cholesky) Chol(M *Dense) bool {
+func (ch *CholFactors) Chol(M *Dense) bool {
 	n := M.Rows()
 	if M.Cols() != n {
+		ch.LU = nil
 		return false
 	}
 
-	if ch.L == nil || ch.L.Rows() < n {
-		ch.L = NewDense(n, n)
-	} else if ch.L.Rows() > n {
-		ch.L = ch.L.SubmatrixView(0, 0, n, n)
+	if ch.LU == nil || ch.LU.Rows() < n {
+		ch.LU = NewDense(n, n)
+	} else {
+		if ch.LU.Rows() > n {
+			ch.LU = ch.LU.SubmatrixView(0, 0, n, n)
+		}
 	}
 
-	l := ch.L
+	lu := ch.LU
 
 	// Typically Chol is called when the caller knows that
 	// M is symmetric and PD in concept, e.g. M is a covariance matrix.
@@ -54,65 +53,30 @@ func (ch *Cholesky) Chol(M *Dense) bool {
 
 	for i := 0; i < n; i++ {
 		var d float64
-		lRowi := l.RowView(i)
+		luRowi := lu.RowView(i)
 		for k := 0; k < i; k++ {
-			lRowk := l.RowView(k)
-			s := dot(lRowk[:k], lRowi[:k])
-			s = (M.Get(i, k) - s) / lRowk[k]
-			lRowi[k] = s
+			luRowk := lu.RowView(k)
+			s := dot(luRowk[:k], luRowi[:k])
+			s = (M.Get(i, k) - s) / luRowk[k]
+			luRowi[k] = s
 			d += s * s
 		}
 		d = M.Get(i, i) - d
 		if d <= 0 {
+			ch.LU = nil
 			return false
 		}
-		lRowi[i] = math.Sqrt(d)
+		luRowi[i] = math.Sqrt(d)
 	}
 
-	return true
-}
-
-// CholR returns the right Cholesky decomposition of the matrix M.
-func CholR(M *Dense) (*CholeskyR, bool) {
-	ch := &CholeskyR{}
-	b := ch.Chol(M)
-	return ch, b
-}
-
-// Chol conducts right Cholesky decomposition for the matrix M.
-// The receiver ch is updated. Success flag is returned.
-func (ch *CholeskyR) Chol(M *Dense) bool {
-	n := M.Rows()
-	if M.Cols() != n {
-		return false
-	}
-
-	if ch.U == nil || ch.U.Rows() < n {
-		ch.U = NewDense(n, n)
-	} else if ch.U.Rows() > n {
-		ch.U = ch.U.SubmatrixView(0, 0, n, n)
-	}
-
-	u := ch.U
-
-	for col := 0; col < n; col++ {
-		var d float64
-		for k := 0; k < col; k++ {
-			s := M.Get(k, col)
-			for i := 0; i < k; i++ {
-				s -= u.Get(i, k) * u.Get(i, col)
-				// TODO: some improvement is possible here,
-				// noticing that part of the dot product is repeated.
-			}
-			s /= u.Get(k, k)
-			u.Set(k, col, s)
-			d += s * s
+	// Fill up the upper triangle.
+	for row := 0; row < n-1; row++ {
+		r := lu.RowView(row)
+		k := row + lu.stride*(row+1)
+		for col := row + 1; col < n; col++ {
+			r[col] = lu.data[k]
+			k += lu.stride
 		}
-		d = M.Get(col, col) - d
-		if d <= 0 {
-			return false
-		}
-		u.Set(col, col, math.Sqrt(d))
 	}
 
 	return true
@@ -123,13 +87,13 @@ func (ch *CholeskyR) Chol(M *Dense) bool {
 // The matrix b must have the same number of rows as a.
 // b is overwritten by the operation and returned containing the
 // solution.
-func (ch *Cholesky) Solve(b *Dense) *Dense {
-	l := ch.L
-	if l == nil {
+func (ch *CholFactors) Solve(b *Dense) *Dense {
+	lu := ch.LU
+	if lu == nil {
 		panic(errInNil)
 	}
 
-	n := l.Rows()
+	n := lu.Rows()
 
 	if b.Rows() != n {
 		panic(errShapes)
@@ -140,52 +104,51 @@ func (ch *Cholesky) Solve(b *Dense) *Dense {
 
 	// Solve L*Y = B;
 	for row := 0; row < n; row++ {
-		lrow := l.RowView(row)
+		lurow := lu.RowView(row)
 		for col := 0; col < nx; col++ {
 			ix := col
 			v := 0.0
 			for k := 0; k < row; k++ {
-				v += x.data[ix] * lrow[k]
+				v += x.data[ix] * lurow[k]
 				ix += x.stride
 			}
 
 			// element (row, col) of x.
-			x.data[ix] = (x.data[ix] - v) / lrow[row]
+			x.data[ix] = (x.data[ix] - v) / lurow[row]
 		}
 	}
 
 	// Solve L'*X = Y;
 	for row := n - 1; row >= 0; row-- {
 		for col := 0; col < nx; col++ {
+			lucol := lu.RowView(row) // the row-th col of lu
 			ix := col + x.stride*(n-1)
-			il := row + l.stride*(n-1)
 			v := 0.0
 			for k := n - 1; k > row; k-- {
-				v += x.data[ix] * l.data[il]
+				v += x.data[ix] * lucol[k]
 				ix -= x.stride
-				il -= l.stride
 			}
 
 			// element (row, col) of x.
-			x.data[ix] = (x.data[ix] - v) / l.data[il]
+			x.data[ix] = (x.data[ix] - v) / lucol[row]
 		}
 	}
 
 	return x
 }
 
-// Solve returns a matrix x that solves x * a = b where a is the matrix
+// SolveR returns a matrix x that solves x * a = b where a is the matrix
 // that produced ch by CholR(a).
 // The matrix b must have the same number of cols as a.
 // b is overwritten by the operation and returned containing the
 // solution.
-func (ch *CholeskyR) Solve(b *Dense) *Dense {
-	u := ch.U
-	if u == nil {
+func (ch *CholFactors) SolveR(b *Dense) *Dense {
+	lu := ch.LU
+	if lu == nil {
 		panic(errInNil)
 	}
 
-	n := u.Cols()
+	n := lu.Cols()
 
 	if b.Cols() != n {
 		panic(errShapes)
@@ -200,23 +163,19 @@ func (ch *CholeskyR) Solve(b *Dense) *Dense {
 	for col := 0; col < n; col++ {
 		for row := 0; row < nx; row++ {
 			xrow := x.RowView(row)
-			iu := col
-			v := 0.0
-			for k := 0; k < col; k++ {
-				v += xrow[k] * u.data[iu]
-				iu += u.stride
-			}
-			xrow[col] = (xrow[col] - v) / u.data[iu]
+			lucol := lu.RowView(col)
+			v := dot(xrow[:col], lucol[:col])
+			xrow[col] = (xrow[col] - v) / lucol[col]
 		}
 	}
 
 	// Solve X * U' = Y
 	for col := n - 1; col >= 0; col-- {
-		ucol := u.RowView(col)
+		lucol := lu.RowView(col)
 		for row := 0; row < nx; row++ {
 			xrow := x.RowView(row)
-			v := dot(xrow[col+1:], ucol[col+1:])
-			xrow[col] = (xrow[col] - v) / ucol[col]
+			v := dot(xrow[col+1:], lucol[col+1:])
+			xrow[col] = (xrow[col] - v) / lucol[col]
 		}
 	}
 
@@ -224,35 +183,13 @@ func (ch *CholeskyR) Solve(b *Dense) *Dense {
 }
 
 // Inv returns the inverse of the matrix a that produced ch by Chol(a).
-func (ch *Cholesky) Inv(out *Dense) *Dense {
-	l := ch.L
-	if l == nil {
+func (ch *CholFactors) Inv(out *Dense) *Dense {
+	lu := ch.LU
+	if lu == nil {
 		panic(errInNil)
 	}
 
-	n := l.Rows()
-
-	if out == nil {
-		out = NewDense(n, n)
-	} else {
-		if out.Rows() != n || out.cols != n {
-			panic(errOutShape)
-		}
-		out.Fill(0.0)
-	}
-	out.FillDiag(1.0)
-
-	return ch.Solve(out)
-}
-
-// Inv returns the inverse of the matrix a that produced ch by CholR(a).
-func (ch *CholeskyR) Inv(out *Dense) *Dense {
-	u := ch.U
-	if u == nil {
-		panic(errInNil)
-	}
-
-	n := u.Rows()
+	n := lu.Rows()
 
 	if out == nil {
 		out = NewDense(n, n)
