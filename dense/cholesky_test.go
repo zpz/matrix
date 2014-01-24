@@ -38,6 +38,9 @@ func (s *S) TestCholesky(c *check.C) {
 			1e-12),
 			check.Equals, true)
 
+		ok = cl.Chol(t.a)
+		c.Check(ok, check.Equals, t.spd)
+
 		c.Check(EqualApprox(
 			Mult(t.a, cl.Inv(nil), nil),
 			eye(3),
@@ -68,6 +71,9 @@ func (s *S) TestCholesky(c *check.C) {
 			eye(3),
 			1e-12),
 			check.Equals, true)
+
+		ok = cr.Chol(t.a)
+		c.Check(ok, check.Equals, t.spd)
 
 		c.Check(EqualApprox(
 			Mult(t.a, cr.Inv(nil), nil),
