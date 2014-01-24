@@ -26,19 +26,60 @@ func (s *S) TestCholesky(c *check.C) {
 		cl, ok := Chol(t.a)
 		c.Check(ok, check.Equals, t.spd)
 
-		lc := Mult(cl.L, T(cl.L, nil), nil)
-		c.Check(EqualApprox(lc, t.a, 1e-12), check.Equals, true)
+		c.Check(EqualApprox(
+			Mult(cl.L, T(cl.L, nil), nil),
+			t.a,
+			1e-12),
+			check.Equals, true)
 
-		ta := Mult(t.a, cl.Solve(eye(3)), nil)
-		c.Check(EqualApprox(ta, eye(3), 1e-12), check.Equals, true)
+		c.Check(EqualApprox(
+			Mult(t.a, cl.Solve(eye(3)), nil),
+			eye(3),
+			1e-12),
+			check.Equals, true)
+
+		c.Check(EqualApprox(
+			Mult(t.a, cl.Inv(nil), nil),
+			eye(3),
+			1e-12),
+			check.Equals, true)
+
+		b := make_dense(3, 4, []float64{
+			1, 2, 3, 4,
+			4, 5, 2, 3,
+			6, 7, 8, 9})
+		c.Check(EqualApprox(
+			b,
+			Mult(t.a, cl.Solve(Clone(b)), nil),
+			1e-12),
+			check.Equals, true)
 
 		cr, ok := CholR(t.a)
 		c.Check(ok, check.Equals, t.spd)
 
-		rc := Mult(T(cr.U, nil), cr.U, nil)
-		c.Check(EqualApprox(rc, t.a, 1e-12), check.Equals, true)
+		c.Check(EqualApprox(
+			Mult(T(cr.U, nil), cr.U, nil),
+			t.a,
+			1e-12),
+			check.Equals, true)
 
-		tb := Mult(cr.Solve(eye(3)), t.a, nil)
-		c.Check(EqualApprox(tb, eye(3), 1e-12), check.Equals, true)
+		c.Check(EqualApprox(
+			Mult(cr.Solve(eye(3)), t.a, nil),
+			eye(3),
+			1e-12),
+			check.Equals, true)
+
+		c.Check(EqualApprox(
+			Mult(t.a, cr.Inv(nil), nil),
+			eye(3),
+			1e-12),
+			check.Equals, true)
+
+		bt := T(b, nil)
+		c.Check(EqualApprox(
+			bt,
+			Mult(cr.Solve(Clone(bt)), t.a, nil),
+			1e-12),
+			check.Equals, true)
 	}
 }

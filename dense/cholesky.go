@@ -100,7 +100,7 @@ func CholR(M *Dense) (CholeskyR, bool) {
 // The matrix b must have the same number of rows as a.
 // b is overwritten by the operation and returned containing the
 // solution.
-func (ch Cholesky) Solve(b *Dense) (x *Dense) {
+func (ch Cholesky) Solve(b *Dense) *Dense {
 	l := ch.L
 	if l == nil {
 		panic(errInNil)
@@ -112,7 +112,7 @@ func (ch Cholesky) Solve(b *Dense) (x *Dense) {
 		panic(errShapes)
 	}
 
-	x = b
+	x := b
 	nx := x.Cols()
 
 	// Solve L*Y = B;
@@ -156,7 +156,7 @@ func (ch Cholesky) Solve(b *Dense) (x *Dense) {
 // The matrix b must have the same number of cols as a.
 // b is overwritten by the operation and returned containing the
 // solution.
-func (ch CholeskyR) Solve(b *Dense) (x *Dense) {
+func (ch CholeskyR) Solve(b *Dense) *Dense {
 	u := ch.U
 	if u == nil {
 		panic(errInNil)
@@ -168,7 +168,7 @@ func (ch CholeskyR) Solve(b *Dense) (x *Dense) {
 		panic(errShapes)
 	}
 
-	x = b
+	x := b
 	nx := x.Rows()
 
 	// x * U' * U = B
@@ -198,4 +198,48 @@ func (ch CholeskyR) Solve(b *Dense) (x *Dense) {
 	}
 
 	return x
+}
+
+// Inv returns the inverse of the matrix a that produced ch by Chol(a).
+func (ch Cholesky) Inv(out *Dense) *Dense {
+	l := ch.L
+	if l == nil {
+		panic(errInNil)
+	}
+
+	n := l.Rows()
+
+	if out == nil {
+		out = NewDense(n, n)
+	} else {
+		if out.Rows() != n || out.cols != n {
+			panic(errOutShape)
+		}
+		out.Fill(0.0)
+	}
+	out.FillDiag(1.0)
+
+	return ch.Solve(out)
+}
+
+// Inv returns the inverse of the matrix a that produced ch by CholR(a).
+func (ch CholeskyR) Inv(out *Dense) *Dense {
+	u := ch.U
+	if u == nil {
+		panic(errInNil)
+	}
+
+	n := u.Rows()
+
+	if out == nil {
+		out = NewDense(n, n)
+	} else {
+		if out.Rows() != n || out.cols != n {
+			panic(errOutShape)
+		}
+		out.Fill(0.0)
+	}
+	out.FillDiag(1.0)
+
+	return ch.Solve(out)
 }
