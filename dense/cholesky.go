@@ -26,19 +26,31 @@ type CholeskyR struct {
 }
 
 // Chol returns the left Cholesky decomposition of the matrix M.
-// If M is not symmetric and positive definite, the operation will
-// return false.
-func Chol(M *Dense) (Cholesky, bool) {
+func Chol(M *Dense) (*Cholesky, bool) {
+	ch := &Cholesky{}
+	b := ch.Chol(M)
+	return ch, b
+}
+
+// Chol conducts left Cholesky decomposition for the matrix M.
+// The receiver ch is updated. Success flag is returned.
+func (ch *Cholesky) Chol(M *Dense) bool {
 	n := M.Rows()
 	if M.Cols() != n {
-		return Cholesky{nil}, false
+		return false
 	}
+
+	if ch.L == nil || ch.L.Rows() < n {
+		ch.L = NewDense(n, n)
+	} else if ch.L.Rows() > n {
+		ch.L = ch.L.SubmatrixView(0, 0, n, n)
+	}
+
+	l := ch.L
 
 	// Typically Chol is called when the caller knows that
 	// M is symmetric and PD in concept, e.g. M is a covariance matrix.
 	// Hence symmetry is not checked directly.
-
-	l := NewDense(n, n)
 
 	for i := 0; i < n; i++ {
 		var d float64
@@ -52,47 +64,58 @@ func Chol(M *Dense) (Cholesky, bool) {
 		}
 		d = M.Get(i, i) - d
 		if d <= 0 {
-			return Cholesky{nil}, false
+			return false
 		}
 		lRowi[i] = math.Sqrt(d)
 	}
 
-	return Cholesky{l}, true
+	return true
 }
 
-// Chol returns the right Cholesky decomposition of the matrix M.
-// If M is not symmetric and positive definite, the operation will
-// return false.
-func CholR(M *Dense) (CholeskyR, bool) {
+// CholR returns the right Cholesky decomposition of the matrix M.
+func CholR(M *Dense) (*CholeskyR, bool) {
+	ch := &CholeskyR{}
+	b := ch.Chol(M)
+	return ch, b
+}
+
+// Chol conducts right Cholesky decomposition for the matrix M.
+// The receiver ch is updated. Success flag is returned.
+func (ch *CholeskyR) Chol(M *Dense) bool {
 	n := M.Rows()
 	if M.Cols() != n {
-		return CholeskyR{nil}, false
+		return false
 	}
 
-	r := NewDense(n, n)
+	if ch.U == nil || ch.U.Rows() < n {
+		ch.U = NewDense(n, n)
+	} else if ch.U.Rows() > n {
+		ch.U = ch.U.SubmatrixView(0, 0, n, n)
+	}
 
-	for j := 0; j < n; j++ {
+	u := ch.U
+
+	for col := 0; col < n; col++ {
 		var d float64
-		for k := 0; k < j; k++ {
-			s := M.Get(k, j)
+		for k := 0; k < col; k++ {
+			s := M.Get(k, col)
 			for i := 0; i < k; i++ {
-				s -= r.Get(i, k) * r.Get(i, j)
+				s -= u.Get(i, k) * u.Get(i, col)
+				// TODO: some improvement is possible here,
+				// noticing that part of the dot product is repeated.
 			}
-			s /= r.Get(k, k)
-			r.Set(k, j, s)
+			s /= u.Get(k, k)
+			u.Set(k, col, s)
 			d += s * s
 		}
-		d = M.Get(j, j) - d
+		d = M.Get(col, col) - d
 		if d <= 0 {
-			return CholeskyR{nil}, false
+			return false
 		}
-		r.Set(j, j, math.Sqrt(math.Max(d, 0)))
-		for k := j + 1; k < n; k++ {
-			r.Set(k, j, 0)
-		}
+		u.Set(col, col, math.Sqrt(d))
 	}
 
-	return CholeskyR{r}, true
+	return true
 }
 
 // Solve returns a matrix x that solves a * x = b where a is the matrix
@@ -100,7 +123,7 @@ func CholR(M *Dense) (CholeskyR, bool) {
 // The matrix b must have the same number of rows as a.
 // b is overwritten by the operation and returned containing the
 // solution.
-func (ch Cholesky) Solve(b *Dense) *Dense {
+func (ch *Cholesky) Solve(b *Dense) *Dense {
 	l := ch.L
 	if l == nil {
 		panic(errInNil)
@@ -156,7 +179,7 @@ func (ch Cholesky) Solve(b *Dense) *Dense {
 // The matrix b must have the same number of cols as a.
 // b is overwritten by the operation and returned containing the
 // solution.
-func (ch CholeskyR) Solve(b *Dense) *Dense {
+func (ch *CholeskyR) Solve(b *Dense) *Dense {
 	u := ch.U
 	if u == nil {
 		panic(errInNil)
@@ -201,7 +224,7 @@ func (ch CholeskyR) Solve(b *Dense) *Dense {
 }
 
 // Inv returns the inverse of the matrix a that produced ch by Chol(a).
-func (ch Cholesky) Inv(out *Dense) *Dense {
+func (ch *Cholesky) Inv(out *Dense) *Dense {
 	l := ch.L
 	if l == nil {
 		panic(errInNil)
@@ -223,7 +246,7 @@ func (ch Cholesky) Inv(out *Dense) *Dense {
 }
 
 // Inv returns the inverse of the matrix a that produced ch by CholR(a).
-func (ch CholeskyR) Inv(out *Dense) *Dense {
+func (ch *CholeskyR) Inv(out *Dense) *Dense {
 	u := ch.U
 	if u == nil {
 		panic(errInNil)
