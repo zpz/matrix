@@ -11,10 +11,10 @@ import (
 
 // CholFactors contains the Cholesky factors of a symmetric, positive
 // definite matrix M.
-// The member matrix LU is symmetric; let its lower- and upper-triangles
-// (including diagonal) be L and U, then L * U equals M.
+// The member matrix l is lower triangular (including diagonal)
+// that satisfies l * l' = M.
 type CholFactors struct {
-	LU *Dense
+	l *Dense
 }
 
 // Chol returns the Cholesky decomposition of the matrix M.
@@ -33,19 +33,20 @@ func Chol(M *Dense) (*CholFactors, bool) {
 func (ch *CholFactors) Chol(M *Dense) bool {
 	n := M.Rows()
 	if M.Cols() != n {
-		ch.LU = nil
+		ch.l = nil
 		return false
 	}
 
-	if ch.LU == nil || ch.LU.Rows() < n {
-		ch.LU = NewDense(n, n)
+	if ch.l == nil || ch.l.Rows() < n {
+		ch.l = NewDense(n, n)
 	} else {
-		if ch.LU.Rows() > n {
-			ch.LU = ch.LU.SubmatrixView(0, 0, n, n)
+		if ch.l.Rows() > n {
+			ch.l = ch.l.SubmatrixView(0, 0, n, n)
 		}
+		ch.l.FillUpper(0.0)
 	}
 
-	lu := ch.LU
+	l := ch.l
 
 	// Typically Chol is called when the caller knows that
 	// M is symmetric and PD in concept, e.g. M is a covariance matrix.
@@ -53,33 +54,32 @@ func (ch *CholFactors) Chol(M *Dense) bool {
 
 	for i := 0; i < n; i++ {
 		var d float64
-		luRowi := lu.RowView(i)
+		lRowi := l.RowView(i)
 		for k := 0; k < i; k++ {
-			luRowk := lu.RowView(k)
-			s := dot(luRowk[:k], luRowi[:k])
-			s = (M.Get(i, k) - s) / luRowk[k]
-			luRowi[k] = s
+			lRowk := l.RowView(k)
+			s := dot(lRowk[:k], lRowi[:k])
+			s = (M.Get(i, k) - s) / lRowk[k]
+			lRowi[k] = s
 			d += s * s
 		}
 		d = M.Get(i, i) - d
 		if d <= 0 {
-			ch.LU = nil
+			ch.l = nil
 			return false
 		}
-		luRowi[i] = math.Sqrt(d)
-	}
-
-	// Fill up the upper triangle.
-	for row := 0; row < n-1; row++ {
-		r := lu.RowView(row)
-		k := row + lu.stride*(row+1)
-		for col := row + 1; col < n; col++ {
-			r[col] = lu.data[k]
-			k += lu.stride
-		}
+		lRowi[i] = math.Sqrt(d)
 	}
 
 	return true
+}
+
+// L returns the Cholesky factor L such that
+// L * L' = M, where M is the original matrix
+// that produced ch. Since the returned matrix is
+// a reference to internal data of ch, one is
+// not expected to make changes to it.
+func (ch *CholFactors) L() *Dense {
+	return ch.l
 }
 
 // Solve returns a matrix x that solves a * x = b where a is the matrix
@@ -88,12 +88,12 @@ func (ch *CholFactors) Chol(M *Dense) bool {
 // b is overwritten by the operation and returned containing the
 // solution.
 func (ch *CholFactors) Solve(b *Dense) *Dense {
-	lu := ch.LU
-	if lu == nil {
+	l := ch.l
+	if l == nil {
 		panic(errInNil)
 	}
 
-	n := lu.Rows()
+	n := l.Rows()
 
 	if b.Rows() != n {
 		panic(errShapes)
@@ -104,33 +104,35 @@ func (ch *CholFactors) Solve(b *Dense) *Dense {
 
 	// Solve L*Y = B;
 	for row := 0; row < n; row++ {
-		lurow := lu.RowView(row)
+		lrow := l.RowView(row)
 		for col := 0; col < nx; col++ {
 			ix := col
 			v := 0.0
 			for k := 0; k < row; k++ {
-				v += x.data[ix] * lurow[k]
+				v += x.data[ix] * lrow[k]
 				ix += x.stride
 			}
 
 			// element (row, col) of x.
-			x.data[ix] = (x.data[ix] - v) / lurow[row]
+			x.data[ix] = (x.data[ix] - v) / lrow[row]
 		}
 	}
 
 	// Solve L'*X = Y;
 	for row := n - 1; row >= 0; row-- {
 		for col := 0; col < nx; col++ {
-			lucol := lu.RowView(row) // the row-th col of lu
 			ix := col + x.stride*(n-1)
+			// The col-th col of x.
+			il := row + l.stride*(n-1)
 			v := 0.0
 			for k := n - 1; k > row; k-- {
-				v += x.data[ix] * lucol[k]
+				v += x.data[ix] * l.data[il]
 				ix -= x.stride
+				il -= l.stride
 			}
 
 			// element (row, col) of x.
-			x.data[ix] = (x.data[ix] - v) / lucol[row]
+			x.data[ix] = (x.data[ix] - v) / l.data[il]
 		}
 	}
 
@@ -143,12 +145,12 @@ func (ch *CholFactors) Solve(b *Dense) *Dense {
 // b is overwritten by the operation and returned containing the
 // solution.
 func (ch *CholFactors) SolveR(b *Dense) *Dense {
-	lu := ch.LU
-	if lu == nil {
+	l := ch.l
+	if l == nil {
 		panic(errInNil)
 	}
 
-	n := lu.Cols()
+	n := l.Cols()
 
 	if b.Cols() != n {
 		panic(errShapes)
@@ -163,19 +165,23 @@ func (ch *CholFactors) SolveR(b *Dense) *Dense {
 	for col := 0; col < n; col++ {
 		for row := 0; row < nx; row++ {
 			xrow := x.RowView(row)
-			lucol := lu.RowView(col)
-			v := dot(xrow[:col], lucol[:col])
-			xrow[col] = (xrow[col] - v) / lucol[col]
+			lcol := l.RowView(col)
+			v := dot(xrow[:col], lcol[:col])
+			xrow[col] = (xrow[col] - v) / lcol[col]
 		}
 	}
 
 	// Solve X * U' = Y
 	for col := n - 1; col >= 0; col-- {
-		lucol := lu.RowView(col)
 		for row := 0; row < nx; row++ {
 			xrow := x.RowView(row)
-			v := dot(xrow[col+1:], lucol[col+1:])
-			xrow[col] = (xrow[col] - v) / lucol[col]
+			il := col + l.stride*(n-1)
+			v := 0.0
+			for k := n - 1; k > col; k-- {
+				v += xrow[k] * l.data[il]
+				il -= l.stride
+			}
+			xrow[col] = (xrow[col] - v) / l.data[il]
 		}
 	}
 
@@ -184,12 +190,12 @@ func (ch *CholFactors) SolveR(b *Dense) *Dense {
 
 // Inv returns the inverse of the matrix a that produced ch by Chol(a).
 func (ch *CholFactors) Inv(out *Dense) *Dense {
-	lu := ch.LU
-	if lu == nil {
+	l := ch.l
+	if l == nil {
 		panic(errInNil)
 	}
 
-	n := lu.Rows()
+	n := l.Rows()
 
 	if out == nil {
 		out = NewDense(n, n)

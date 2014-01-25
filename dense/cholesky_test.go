@@ -26,11 +26,8 @@ func (s *S) TestCholesky(c *check.C) {
 		cl, ok := Chol(t.a)
 		c.Check(ok, check.Equals, t.spd)
 
-		L := NewDense(3, 3)
-		CopyLower(L, cl.LU)
-		CopyDiag(L, cl.LU)
 		c.Check(EqualApprox(
-			Mult(L, T(L, nil), nil),
+			Mult(cl.L(), T(cl.L(), nil), nil),
 			t.a,
 			1e-12),
 			check.Equals, true)
