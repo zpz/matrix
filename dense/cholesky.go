@@ -121,9 +121,9 @@ func (ch *CholFactors) Solve(b *Dense) *Dense {
 	// Solve L'*X = Y;
 	for row := n - 1; row >= 0; row-- {
 		for col := 0; col < nx; col++ {
-			ix := col + x.stride*(n-1)
+			ix := x.idx(n-1, col)
 			// The col-th col of x.
-			il := row + l.stride*(n-1)
+			il := l.idx(n-1, row)
 			v := 0.0
 			for k := n - 1; k > row; k-- {
 				v += x.data[ix] * l.data[il]
@@ -174,14 +174,15 @@ func (ch *CholFactors) SolveR(b *Dense) *Dense {
 	// Solve X * U' = Y
 	for col := n - 1; col >= 0; col-- {
 		for row := 0; row < nx; row++ {
-			xrow := x.RowView(row)
-			il := col + l.stride*(n-1)
+			ix := x.idx(row, n-1)
+			il := l.idx(n-1, col)
 			v := 0.0
 			for k := n - 1; k > col; k-- {
-				v += xrow[k] * l.data[il]
+				v += x.data[ix] * l.data[il]
 				il -= l.stride
+				ix--
 			}
-			xrow[col] = (xrow[col] - v) / l.data[il]
+			x.data[ix] = (x.data[ix] - v) / l.data[il]
 		}
 	}
 

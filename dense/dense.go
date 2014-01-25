@@ -71,6 +71,14 @@ func (m *Dense) Cols() int { return m.cols }
 // call DataView to get a view of the data slice and work on it directly.
 func (m *Dense) Contiguous() bool { return m.cols == m.stride }
 
+// idx returns the index for element (r, c)
+// in the internal data slice.
+// The next element on the same row would be stepped by 1;
+// the next element on the same col would be stepped by m.stride.
+func (m *Dense) idx(r, c int) int {
+	return r*m.stride + c
+}
+
 func (m *Dense) Get(r, c int) float64 {
 	return m.data[r*m.stride+c]
 }
