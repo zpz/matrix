@@ -110,52 +110,22 @@ func (m *Dense) SetRow(r int, v []float64) *Dense {
 	return m
 }
 
-func (m *Dense) ColView(c int) *LaggedFloat64Slice {
+func (m *Dense) ColView(c int) *Float64Stride {
 	if c >= m.cols || c < 0 {
 		panic(errIndexOutOfRange)
 	}
 	from := c
 	to := from + (m.rows-1)*m.stride + 1
-	return NewLaggedFloat64Slice(m.data[from:to], m.stride)
+	return NewFloat64Stride(m.data[from:to], m.stride)
 }
 
 func (m *Dense) GetCol(c int, col []float64) []float64 {
 	return m.ColView(c).CopyTo(col)
-
-	/*
-		if c >= m.cols || c < 0 {
-			panic(errIndexOutOfRange)
-		}
-		col = use_slice(col, m.rows, errOutLength)
-
-		if blasEngine == nil {
-			panic(errNoEngine)
-		}
-		blasEngine.Dcopy(m.rows, m.data[c:], m.stride, col, 1)
-
-		return col
-	*/
 }
 
 func (m *Dense) SetCol(c int, v []float64) *Dense {
 	m.ColView(c).CopyFrom(v)
 	return m
-
-	/*
-		if c >= m.cols || c < 0 {
-			panic(errIndexOutOfRange)
-		}
-
-		if len(v) != m.rows {
-			panic(errInLength)
-		}
-
-		if blasEngine == nil {
-			panic(errNoEngine)
-		}
-		blasEngine.Dcopy(m.rows, v, 1, m.data[c:], m.stride)
-		return m
-	*/
 }
 
 // SubmatrixView returns a "view" to the specified sub-matrix.
