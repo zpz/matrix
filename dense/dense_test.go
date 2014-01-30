@@ -787,7 +787,7 @@ func (s *S) TestSolve(c *check.C) {
 		}
 
 		trueX := flatten2dense(test.x)
-		c.Check(EqualApprox(x, trueX, 1e-13), check.Equals, true, check.Commentf("Test %v solution mismatch: Found %v, expected %v ", test.name, x, trueX))
+		c.Check(Approx(x, trueX, 1e-13), check.Equals, true, check.Commentf("Test %v solution mismatch: Found %v, expected %v ", test.name, x, trueX))
 	}
 }
 

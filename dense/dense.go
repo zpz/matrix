@@ -759,7 +759,7 @@ func Equal(a, b *Dense) bool {
 	return true
 }
 
-func EqualApprox(a, b *Dense, eps float64) bool {
+func Approx(a, b *Dense, eps float64) bool {
 	if a.rows != b.rows || a.cols != b.cols {
 		return false
 	}

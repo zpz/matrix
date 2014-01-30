@@ -206,7 +206,7 @@ func (s *S) TestSVD(c *check.C) {
 			vt := T(svd.V, nil)
 			svd.U = Mult(svd.U, s, nil)
 			svd.U = Mult(svd.U, vt, nil)
-			c.Check(EqualApprox(svd.U, t.a, 1e-12), check.Equals, true)
+			c.Check(Approx(svd.U, t.a, 1e-12), check.Equals, true)
 		}
 	}
 }

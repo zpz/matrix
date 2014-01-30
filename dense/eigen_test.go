@@ -97,6 +97,6 @@ func (s *S) TestEigen(c *check.C) {
 
 		t.a = Mult(t.a, ef.V, nil)
 		ef.V = Mult(ef.V, ef.D(), nil)
-		c.Check(EqualApprox(t.a, ef.V, 1e-12), check.Equals, true)
+		c.Check(Approx(t.a, ef.V, 1e-12), check.Equals, true)
 	}
 }
