@@ -120,11 +120,11 @@ func (m *Dense) ColView(c int) *Float64Stride {
 }
 
 func (m *Dense) GetCol(c int, col []float64) []float64 {
-	return m.ColView(c).CopyTo(col)
+	return m.ColView(c).CopyToSlice(col)
 }
 
 func (m *Dense) SetCol(c int, v []float64) *Dense {
-	m.ColView(c).CopyFrom(v)
+	m.ColView(c).CopyFromSlice(v)
 	return m
 }
 
@@ -233,42 +233,57 @@ func (m *Dense) Fill(v float64) *Dense {
 	return m
 }
 
+// DiagView returns a view into the diagonal elements.
+// The matrix does not have to be square.
+func (m *Dense) DiagView() *Float64Stride {
+	return NewFloat64Stride(m.data, m.stride+1)
+}
+
 // GetDiag copies diagonal elements of m into out.
 // out must have the correct length.
 // m is not required to be square.
 func (m *Dense) GetDiag(out []float64) []float64 {
-	k := smaller(m.rows, m.cols)
-	out = use_slice(out, k, errOutLength)
-	for i, j := 0, 0; i < k; i += m.stride + 1 {
-		out[j] = m.data[i]
-		j++
-	}
-	return out
+	return m.DiagView().CopyToSlice(out)
+	/*
+		k := smaller(m.rows, m.cols)
+		out = use_slice(out, k, errOutLength)
+		for i, j := 0, 0; i < k; i += m.stride + 1 {
+			out[j] = m.data[i]
+			j++
+		}
+		return out
+	*/
 }
 
 // SetDiag sets diagonal elements of m to the values in v.
 // The length of v must be exactly right.
 // m is not required to be square.
 func (m *Dense) SetDiag(v []float64) *Dense {
-	k := smaller(m.rows, m.cols)
-	if len(v) != k {
-		panic(errInLength)
-	}
-	for i, j := 0, 0; i < k; i += m.stride + 1 {
-		m.data[i] = v[j]
-		j++
-	}
+	m.DiagView().CopyFromSlice(v)
+	/*
+		k := smaller(m.rows, m.cols)
+		if len(v) != k {
+			panic(errInLength)
+		}
+		for i, j := 0, 0; i < k; i += m.stride + 1 {
+			m.data[i] = v[j]
+			j++
+		}
+	*/
 	return m
 }
 
 // FillDiag sets all diagonal elements to value v.
 // The matrix m is not required to be square.
 func (m *Dense) FillDiag(v float64) *Dense {
-	n := smaller(m.rows, m.cols)
-	for row, k := 0, 0; row < n; row++ {
-		m.data[k] = v
-		k += m.stride + 1
-	}
+	m.DiagView().Fill(v)
+	/*
+		n := smaller(m.rows, m.cols)
+		for row, k := 0, 0; row < n; row++ {
+			m.data[k] = v
+			k += m.stride + 1
+		}
+	*/
 	return m
 }
 
@@ -311,11 +326,14 @@ func CopyDiag(dest, src *Dense) {
 	if dest.rows != src.rows || dest.cols != src.cols {
 		panic(errShapes)
 	}
-	for row, kd, ks, k := 0, 0, 0, smaller(src.rows, src.cols); row < k; row++ {
-		dest.data[kd] = src.data[ks]
-		kd += dest.stride + 1
-		ks += src.stride + 1
-	}
+	/*
+		for row, kd, ks, k := 0, 0, 0, smaller(src.rows, src.cols); row < k; row++ {
+			dest.data[kd] = src.data[ks]
+			kd += dest.stride + 1
+			ks += src.stride + 1
+		}
+	*/
+	copy_stride(dest.DiagView(), src.DiagView())
 }
 
 // CopyUpper copies above-diagonal elements in src to corresponding
@@ -562,6 +580,7 @@ func Vstack(a, b, out *Dense) *Dense {
 	return out
 }
 
+// Max returns the minimum element of m.
 func (m *Dense) Min() float64 {
 	if m.Contiguous() {
 		return min(m.DataView())
@@ -576,6 +595,7 @@ func (m *Dense) Min() float64 {
 	return v
 }
 
+// Max returns the maximum element of m.
 func (m *Dense) Max() float64 {
 	if m.Contiguous() {
 		return max(m.DataView())
@@ -590,6 +610,7 @@ func (m *Dense) Max() float64 {
 	return v
 }
 
+// Sum returns the sum of all elements of m.
 func (m *Dense) Sum() float64 {
 	if m.Contiguous() {
 		return sum(m.DataView())
@@ -612,65 +633,41 @@ func (m *Dense) Trace() float64 {
 	return t
 }
 
-var inf = math.Inf(1)
-
-const (
-	epsilon = 2.2204e-16
-	small   = math.SmallestNonzeroFloat64
-)
-
+// Norm returns the order ord of norm for matrix m.
 func (m *Dense) Norm(ord float64) float64 {
 	var n float64
 	switch {
 	case ord == 1:
-		col := make([]float64, m.rows)
 		for i := 0; i < m.cols; i++ {
-			var s float64
-			for _, e := range m.GetCol(i, col) {
-				s += e
-			}
+			s := m.ColView(i).Sum()
 			n = math.Max(math.Abs(s), n)
 		}
 	case math.IsInf(ord, +1):
 		for i := 0; i < m.rows; i++ {
-			var s float64
-			for _, e := range m.RowView(i) {
-				s += e
-			}
+			s := sum(m.RowView(i))
 			n = math.Max(math.Abs(s), n)
 		}
 	case ord == -1:
 		n = math.MaxFloat64
-		col := make([]float64, m.rows)
 		for i := 0; i < m.cols; i++ {
-			var s float64
-			for _, e := range m.GetCol(i, col) {
-				s += e
-			}
+			s := m.ColView(i).Sum()
 			n = math.Min(math.Abs(s), n)
 		}
 	case math.IsInf(ord, -1):
 		n = math.MaxFloat64
 		for i := 0; i < m.rows; i++ {
-			var s float64
-			for _, e := range m.RowView(i) {
-				s += e
-			}
+			s := sum(m.RowView(i))
 			n = math.Min(math.Abs(s), n)
 		}
 	case ord == 0:
-		for i := 0; i < len(m.data); i += m.stride {
-			for _, v := range m.data[i : i+m.cols] {
-				n += v * v
-			}
-		}
-		return math.Sqrt(n)
+		n = math.Sqrt(Dot(m, m))
 	case ord == 2, ord == -2:
-		s := SVD(m, epsilon, small, false, false).Sigma
+		s := SVD(m, 2.2204e-16, math.SmallestNonzeroFloat64, false, false).Sigma
 		if ord == 2 {
-			return s[0]
+			n = s[0]
+		} else {
+			n = s[len(s)-1]
 		}
-		return s[len(s)-1]
 	default:
 		panic(errNormOrder)
 	}

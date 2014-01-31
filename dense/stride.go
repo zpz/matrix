@@ -46,7 +46,7 @@ func (me *Float64Stride) Swap(i, j int) *Float64Stride {
 	return me
 }
 
-func (me *Float64Stride) CopyFrom(in []float64) *Float64Stride {
+func (me *Float64Stride) CopyFromSlice(in []float64) *Float64Stride {
 	n := me.Len()
 	if len(in) != n {
 		panic(errInLength)
@@ -57,7 +57,7 @@ func (me *Float64Stride) CopyFrom(in []float64) *Float64Stride {
 	return me
 }
 
-func (me *Float64Stride) CopyTo(out []float64) []float64 {
+func (me *Float64Stride) CopyToSlice(out []float64) []float64 {
 	n := me.Len()
 	out = use_slice(out, n, errOutLength)
 	for i, j := 0, 0; i < n; i, j = i+1, j+me.stride {
@@ -85,4 +85,60 @@ func (me *Float64Stride) Sub(from, to int) *Float64Stride {
 	return &Float64Stride{
 		me.data[from:to],
 		me.stride}
+}
+
+func (me *Float64Stride) Min() (float64, int) {
+	n := me.Len()
+	m := me.Get(0)
+	idx := 0
+	for i := 1; i < n; i++ {
+		v := me.Get(i)
+		if v < m {
+			m = v
+			idx = i
+		}
+	}
+	return m, idx
+}
+
+func (me *Float64Stride) Max() (float64, int) {
+	n := me.Len()
+	m := me.Get(0)
+	idx := 0
+	for i := 1; i < n; i++ {
+		v := me.Get(i)
+		if v > m {
+			m = v
+			idx = i
+		}
+	}
+	return m, idx
+}
+
+func (me *Float64Stride) Sum() float64 {
+	n := me.Len()
+	res := 0.0
+	for i := 0; i < n; i++ {
+		res += me.Get(i)
+	}
+	return res
+}
+
+func (me *Float64Stride) Prod() float64 {
+	n := me.Len()
+	res := 1.0
+	for i := 0; i < n; i++ {
+		res *= me.Get(i)
+	}
+	return res
+}
+
+func copy_stride(dest, src *Float64Stride) {
+	n := dest.Len()
+	if src.Len() != n {
+		panic(errLengths)
+	}
+	for i := 0; i < n; i++ {
+		dest.Set(i, src.Get(i))
+	}
 }

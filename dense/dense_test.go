@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/gonum/blas/cblas"
 	check "launchpad.net/gocheck"
+	"math"
 	"math/rand"
 	"testing"
 )
@@ -552,12 +553,12 @@ func (s *S) TestNorm(c *check.C) {
 		},
 		{
 			a:    [][]float64{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}, {10, 11, 12}},
-			ord:  inf,
+			ord:  math.Inf(1),
 			norm: 33,
 		},
 		{
 			a:    [][]float64{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}, {10, 11, 12}},
-			ord:  -inf,
+			ord:  -math.Inf(1),
 			norm: 6,
 		},
 	} {
