@@ -244,15 +244,6 @@ func (m *Dense) DiagView() *Float64Stride {
 // m is not required to be square.
 func (m *Dense) GetDiag(out []float64) []float64 {
 	return m.DiagView().CopyToSlice(out)
-	/*
-		k := smaller(m.rows, m.cols)
-		out = use_slice(out, k, errOutLength)
-		for i, j := 0, 0; i < k; i += m.stride + 1 {
-			out[j] = m.data[i]
-			j++
-		}
-		return out
-	*/
 }
 
 // SetDiag sets diagonal elements of m to the values in v.
@@ -260,16 +251,6 @@ func (m *Dense) GetDiag(out []float64) []float64 {
 // m is not required to be square.
 func (m *Dense) SetDiag(v []float64) *Dense {
 	m.DiagView().CopyFromSlice(v)
-	/*
-		k := smaller(m.rows, m.cols)
-		if len(v) != k {
-			panic(errInLength)
-		}
-		for i, j := 0, 0; i < k; i += m.stride + 1 {
-			m.data[i] = v[j]
-			j++
-		}
-	*/
 	return m
 }
 
@@ -277,13 +258,6 @@ func (m *Dense) SetDiag(v []float64) *Dense {
 // The matrix m is not required to be square.
 func (m *Dense) FillDiag(v float64) *Dense {
 	m.DiagView().Fill(v)
-	/*
-		n := smaller(m.rows, m.cols)
-		for row, k := 0, 0; row < n; row++ {
-			m.data[k] = v
-			k += m.stride + 1
-		}
-	*/
 	return m
 }
 
@@ -326,13 +300,6 @@ func CopyDiag(dest, src *Dense) {
 	if dest.rows != src.rows || dest.cols != src.cols {
 		panic(errShapes)
 	}
-	/*
-		for row, kd, ks, k := 0, 0, 0, smaller(src.rows, src.cols); row < k; row++ {
-			dest.data[kd] = src.data[ks]
-			kd += dest.stride + 1
-			ks += src.stride + 1
-		}
-	*/
 	copy_stride(dest.DiagView(), src.DiagView())
 }
 
@@ -580,7 +547,7 @@ func Vstack(a, b, out *Dense) *Dense {
 	return out
 }
 
-// Max returns the minimum element of m.
+// Min returns the minimum element of m.
 func (m *Dense) Min() float64 {
 	if m.Contiguous() {
 		return min(m.DataView())
@@ -626,11 +593,7 @@ func (m *Dense) Trace() float64 {
 	if m.rows != m.cols {
 		panic(errSquare)
 	}
-	var t float64
-	for i, n := 0, m.rows*m.cols; i < n; i += m.stride + 1 {
-		t += m.data[i]
-	}
-	return t
+	return m.DiagView().Sum()
 }
 
 // Norm returns the order ord of norm for matrix m.
