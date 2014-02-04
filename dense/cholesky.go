@@ -210,3 +210,9 @@ func (ch *CholFactors) Inv(out *Dense) *Dense {
 
 	return ch.Solve(out)
 }
+
+// Det returns the determinant of the matrix a that produced ch by Chol(a).
+func (ch *CholFactors) Det() float64 {
+	v := ch.l.DiagView().Prod()
+	return v * v
+}
