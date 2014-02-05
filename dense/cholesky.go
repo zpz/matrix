@@ -216,3 +216,13 @@ func (ch *CholFactors) Det() float64 {
 	v := ch.l.DiagView().Prod()
 	return v * v
 }
+
+// Det returns the logarithm of the determinant of the matrix a that produced ch by Chol(a).
+func (ch *CholFactors) LogDet() float64 {
+	v := 0.0
+	diag := ch.l.DiagView()
+	for i := 0; i < ch.l.rows; i++ {
+		v += math.Log(diag.Get(i))
+	}
+	return 2.0 * v
+}

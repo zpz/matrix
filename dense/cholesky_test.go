@@ -9,7 +9,7 @@ import (
 )
 
 func (s *S) TestCholesky(c *check.C) {
-	for _, t := range []struct {
+	data := []struct {
 		a   *Dense
 		spd bool
 	}{
@@ -22,7 +22,9 @@ func (s *S) TestCholesky(c *check.C) {
 
 			spd: true,
 		},
-	} {
+	}
+
+	for _, t := range data {
 		cl, ok := Chol(t.a)
 		c.Check(ok, check.Equals, t.spd)
 
@@ -61,6 +63,18 @@ func (s *S) TestCholesky(c *check.C) {
 		c.Check(Approx(
 			bt,
 			Mult(cl.SolveR(Clone(bt)), t.a, nil),
+			1e-12),
+			check.Equals, true)
+
+		c.Check(Approx(
+			Inv(Clone(t.a), nil),
+			cl.Inv(nil),
+			1e-12),
+			check.Equals, true)
+
+		c.Check(approx(
+			t.a.Det(),
+			cl.Det(),
 			1e-12),
 			check.Equals, true)
 	}
